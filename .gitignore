@@ -1,0 +1,18 @@
+# Build artifacts
+/build/
+*.o
+*.obj
+*.exe
+
+# Generated headers
+.ninja_log
+devicetree_generated.h
+build/devicetree_generated.h
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Editor/IDE
+.vscode/
+*.swp

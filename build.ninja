@@ -1,0 +1,22 @@
+# Generated Ninja build file for the lightweight device tree demo
+# Run with: ninja -f build.ninja
+
+rule gen_dt
+  command = python lwdt2h.py -o build/devicetree_generated.h dt/board.lwdt
+  description = Generating device tree header
+
+rule cc
+  command = gcc -std=c11 -Wall -Wextra -Ibuild -Iinclude -o $out $in
+  description = Compiling $out
+
+rule mkdir
+  command = python -c "import os; os.makedirs('build', exist_ok=True)"
+  description = Creating build directory
+
+build build/.dir: mkdir
+
+build build/devicetree_generated.h: gen_dt | build/.dir
+
+build build/demo_dt.exe: cc demo/demo_dt.c | build/devicetree_generated.h
+
+default build/demo_dt.exe

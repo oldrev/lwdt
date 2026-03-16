@@ -1,0 +1,52 @@
+# 复杂示例 1：多节点、多 phandle、多层嵌套
+# 这里演示：
+# - include 引用
+# - label + phandle（字符串）
+# - 同文件相对引用
+# - 嵌套 dict 属性 flat 宏输出
+# - 多个 compatible
+# - status / reg 解析
+
+include "soc/esp32/esp32.lwdt"
+
+model = "Borneo-Industrial-V2"
+compatible = ["bst,borneo-lyfi", "bst,borneo-industrial"]
+
+soc {
+    status = "okay"
+
+    spi0 {
+        compatible = "esp32,spi"
+        status = "okay"
+        reg = [0x3f420000, 0x1000]
+        irq = 17
+
+        # 子设备使用 dict 属性（会被展开为平铺宏）
+        touchscreen {
+            compatible = "generic,ts"
+            reg = [0x38]
+            orientation = "landscape"
+            # 这里用 dict 来定义 config 选项，输出会变成多个宏
+            config = { mode: "4wire", pull: "up", debounce_ms: 10 }
+        }
+    }
+
+    # 用 node 名称（或 label）绑定一个 node，其他地方通过名字引用
+    i2c1 {
+        label = "i2c1"
+        compatible = "esp32,i2c"
+        status = "okay"
+        reg = [0x3f450000, 0x1000]
+    }
+
+    # 通过 label 引用 i2c1
+    bme280_sensor {
+        compatible = "bosch,bme280"
+        reg = [0x76]
+        clock-frequency = 400000
+        bus = { node: "i2c1", speed: 400000 }
+    }
+
+    # 一个 phandle list，包含字符串引用和 dict 语法
+    fans = ["#/soc/spi0", {node: "i2c1", flags: 2}, "spi0"]
+}

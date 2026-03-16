@@ -1,0 +1,17 @@
+# 复杂示例 2：跨文件引用、相对路径、各种类型属性
+
+include "board_complex.lwdt"
+
+# 这里定义另一个设备层，演示相对引用和多级查找
+
+power {
+    compatible = "bst,power-domain"
+    status = "okay"
+    reg = [0x50000000, 0x1000]
+
+    # 通过相对路径引用顶层 node（soc.spi0）
+    spi_ref = "soc/spi0"
+
+    # 还有一个「全局唯一名称」引用（只能用当作名字唯一时）
+    capacitor = "power"
+}
