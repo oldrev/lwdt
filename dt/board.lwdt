@@ -1,5 +1,5 @@
 # 引入 ESP32 基础配置（包含 SoC / GPIO / I2C 等）
-include "soc/esp32/esp32.lwdt"
+include <soc/esp32/esp32.lwdt>
 
 # 业务逻辑层（代替 lighting 节点）
 lighting {

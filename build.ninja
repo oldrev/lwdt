@@ -2,7 +2,7 @@
 # Run with: ninja -f build.ninja
 
 rule gen_dt
-  command = python lwdt2h.py -o build/lwdt_generated.h dt/board.lwdt
+  command = python lwdt2h.py --basedir dt -o build/lwdt_generated.h dt/board.lwdt
   description = Generating device tree header
 
 rule cc

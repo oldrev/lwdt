@@ -69,12 +69,28 @@ def _format_value(val):
     return f'"{val}"'
 
 
-def _resolve_includes(file_path: str, seen=None):
-    """Resolve include paths in a .lwdt file to absolute paths.
+def _resolve_include_path(include_text: str, include_kind: str, current_dir: str, include_base_dir: str | None):
+    """Resolve an include path according to its delimiter style."""
+    if include_kind == 'quote':
+        return os.path.normpath(os.path.join(current_dir, include_text))
 
-    Includes are resolved relative to the including file's directory (C-style).
-    This function returns the file content with include paths rewritten to absolute
-    paths so that pyhocon can load them correctly regardless of working dir.
+    if include_base_dir:
+        return os.path.normpath(os.path.join(include_base_dir, include_text))
+
+    raise ValueError(
+        f"Angle-bracket include <{include_text}> requires --basedir to be set"
+    )
+
+
+def _resolve_includes(file_path: str, include_base_dir: str | None = None, seen=None):
+    """Resolve and inline include directives in a .lwdt file.
+
+    Includes are resolved as follows:
+    - include "...": relative to the including file's directory.
+    - include <...>: relative to include_base_dir.
+
+    The returned text contains the recursively expanded contents of each included
+    file, with a simple cycle guard to avoid infinite recursion.
     """
     if seen is None:
         seen = set()
@@ -87,16 +103,18 @@ def _resolve_includes(file_path: str, seen=None):
     base_dir = os.path.dirname(file_path)
     out_lines = []
 
-    include_re = re.compile(r'^\s*include\s+"([^"]+)"')
+    include_re = re.compile(r'^\s*include\s+(?:"([^"]+)"|<([^>]+)>)')
     with open(file_path, 'r', encoding='utf-8') as f:
         for line in f:
             m = include_re.match(line)
             if m:
-                rel = m.group(1)
-                inc_path = os.path.normpath(os.path.join(base_dir, rel))
-                # Recursively resolve includes in the included file first
-                _ = _resolve_includes(inc_path, seen=seen)
-                out_lines.append(f'include "{inc_path}"\n')
+                quoted_path = m.group(1)
+                angle_path = m.group(2)
+                include_text = quoted_path or angle_path
+                include_kind = 'quote' if quoted_path is not None else 'angle'
+                inc_path = _resolve_include_path(include_text, include_kind, base_dir, include_base_dir)
+                out_lines.append(_resolve_includes(inc_path, include_base_dir=include_base_dir, seen=seen))
+                out_lines.append('\n')
             else:
                 out_lines.append(line)
 
@@ -404,7 +422,11 @@ def main():
     parser.add_argument("input", help="HOCON file (.conf or .lwdt)")
     parser.add_argument("-o", "--output", default="lwdt_generated.h", help="Output header file")
     parser.add_argument("--prefix", default="LWDT", help="Macro prefix to use for generated symbols")
-    parser.add_argument("--basedir", default=None, help="Base directory for resolving includes in the .lwdt file")
+    parser.add_argument(
+        "--basedir",
+        default=None,
+        help="Base directory for include <...> resolution",
+    )
     parser.add_argument("--check", action="store_true", help="Only validate the device tree, do not write output")
     parser.add_argument("--strict", action="store_true", help="Treat unresolved references as errors and exit non-zero")
     parser.add_argument("-v", "--version", action="version", version=f"lwdt2h 1.0 ({COPYRIGHT})")
@@ -414,26 +436,26 @@ def main():
         print(f"Error: File {args.input} not found.")
         sys.exit(1)
 
-    # Load HOCON, resolving includes relative to each file (C-style include semantics)
-    if args.basedir:
-        base_dir = os.path.abspath(args.basedir)
-        input_file = os.path.join(base_dir, args.input) if not os.path.isabs(args.input) else args.input
-    else:
-        input_file = os.path.abspath(args.input)
-
-    # Pre-resolve include paths to absolute paths so pyhocon can load nested includes correctly.
-    resolved = _resolve_includes(input_file)
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.lwdt', delete=False, encoding='utf-8') as tmp:
-        tmp.write(resolved)
-        tmp_path = tmp.name
+    input_file = os.path.abspath(args.input)
+    base_dir = os.path.abspath(args.basedir) if args.basedir else None
 
     try:
-        conf = ConfigFactory.parse_file(tmp_path)
-    finally:
+        # Pre-resolve include paths to absolute paths so pyhocon can load nested includes correctly.
+        resolved = _resolve_includes(input_file, include_base_dir=base_dir if args.basedir else None)
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.lwdt', delete=False, encoding='utf-8') as tmp:
+            tmp.write(resolved)
+            tmp_path = tmp.name
+
         try:
-            os.remove(tmp_path)
-        except OSError:
-            pass
+            conf = ConfigFactory.parse_file(tmp_path)
+        finally:
+            try:
+                os.remove(tmp_path)
+            except OSError:
+                pass
+    except (OSError, ValueError) as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
     
     # Run engine
     engine = Lwdt(conf, prefix=args.prefix)

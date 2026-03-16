@@ -37,6 +37,12 @@ The test suite covers header generation, node-reference resolution, strict-mode 
 - Update `dt/board.lwdt` (or create additional `.lwdt` files under `dt/`).
 - Run `python lwdt2h.py -o build/lwdt_generated.h dt/board.lwdt` to regenerate the header.
 
+### Include Semantics
+
+- `include "path/file.lwdt"` resolves relative to the file that contains the include.
+- `include <path/file.lwdt>` resolves relative to `--basedir`.
+- When using angle-bracket includes, pass a base directory such as `python lwdt2h.py --basedir dt -o build/lwdt_generated.h dt/board.lwdt`.
+
 ## Notes
 
 - The generator outputs flat macros such as `LWDT_NS_soc_S_i2c0_P_reg_IDX_0`.
