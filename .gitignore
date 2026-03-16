@@ -6,8 +6,8 @@
 
 # Generated headers
 .ninja_log
-devicetree_generated.h
-build/devicetree_generated.h
+lwdt_generated.h
+build/lwdt_generated.h
 
 # Python cache
 __pycache__/

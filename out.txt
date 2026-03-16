@@ -1,0 +1,5 @@
+lighting.status_rgb pwms[0]=led_pwm
+lighting.status_rgb enable_gpios pin=15
+soc.i2c0 status=okay (enabled=1)
+pcf8563[0] compatible=nxp,pcf8563, reg=0x0x51
+pcf8563[1] compatible=nxp,pcf8563, reg=0x0x52

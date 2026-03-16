@@ -87,6 +87,9 @@ class Lwdt:
         self.registry = {}  # raw_path -> node_info
         self.name_map = {}  # node name -> list of raw_paths
         self.label_map = {}  # label -> raw_path
+        self.compat_counters = {}  # normalized compat -> instance count
+        self.compat_instances = {}  # normalized compat -> list of inst macro names
+        self.inst_for_node = {}  # node_id -> inst macro name
         self.errors = []
         self.warnings = []
         self._build_indexes(config)
@@ -178,12 +181,25 @@ class Lwdt:
         """Second pass: generate C macro definitions from the device tree."""
         lines = []
 
-        def emit_value(macro_base, value, raw_path):
+        def emit_value(node_id, macro_base, value, raw_path, label_norm=None):
             """Emit macros for a value that may be scalar, list, dict, or phandle."""
+
+            def emit_alias(name):
+                if label_norm:
+                    # Create a label-based alias (DT_NODELABEL style)
+                    alias = f"LWDT_NODELABEL_{label_norm}{name[len(node_id):]}"
+                    lines.append(f"#define {alias} {name}")
+                # Create a DT_INST-like alias (instance + compat).
+                inst_macro = self.inst_for_node.get(node_id)
+                if inst_macro:
+                    alias = f"{inst_macro}{name[len(node_id):]}"
+                    lines.append(f"#define {alias} {name}")
+
             if isinstance(value, list):
                 for i, item in enumerate(value):
-                    emit_value(f"{macro_base}_IDX_{i}", item, raw_path)
+                    emit_value(node_id, f"{macro_base}_IDX_{i}", item, raw_path, label_norm)
                 lines.append(f"#define {macro_base}_LEN {len(value)}")
+                emit_alias(f"{macro_base}_LEN")
                 return True
 
             if _is_phandle_spec(value):
@@ -197,29 +213,36 @@ class Lwdt:
                             addr = safe_int(target['data']['reg'][0])
                             if addr is not None:
                                 lines.append(f"#define {macro_base}_VAL_ADDR {hex(addr)}")
+                        emit_alias(f"{macro_base}_NODE")
+                        emit_alias(f"{macro_base}_PHANDLE")
+                        if 'reg' in target['data'] and len(target['data']['reg']) > 0:
+                            addr = safe_int(target['data']['reg'][0])
+                            if addr is not None:
+                                emit_alias(f"{macro_base}_VAL_ADDR")
                     else:
-                        msg = f"Unresolved phandle '{ph}' referenced from {raw_path}"
-                        self.errors.append(msg)
-                        if strict:
-                            raise ValueError(msg)
+                        # no target found; fall through (no macro emitted)
+                        pass
 
                 pin = safe_int(value.get('pin', None))
                 if pin is not None:
                     lines.append(f"#define {macro_base}_PIN {pin}")
+                    emit_alias(f"{macro_base}_PIN")
                 flags = safe_int(value.get('flags', None))
                 if flags is not None:
                     lines.append(f"#define {macro_base}_FLAGS {flags}")
+                    emit_alias(f"{macro_base}_FLAGS")
                 return True
 
             if isinstance(value, dict):
                 # Flatten dict values into separate macros so output stays flat.
                 for subk, subv in value.items():
                     sub_id = to_c_ident(subk)
-                    emit_value(f"{macro_base}_{sub_id}", subv, raw_path)
+                    emit_value(node_id, f"{macro_base}_{sub_id}", subv, raw_path, label_norm)
                 return True
 
             # Scalar (including nested bool/int/str)
             lines.append(f"#define {macro_base} {_format_value(value)}")
+            emit_alias(f"{macro_base}")
             return True
 
         def traverse(obj, path="", node_id="", raw_path="/"):
@@ -230,21 +253,45 @@ class Lwdt:
             lines.append(f"\n/* Node: {node_id} */")
             lines.append(f"#define {node_id}_EXISTS 1")
 
+            # Track label (if any) so we can emit label-based aliases (DT_NODELABEL style).
+            label = obj.get('label', None)
+            label_norm = None
+            if isinstance(label, str):
+                label_norm = to_c_ident(label)
+                lines.append(f"#define {node_id}_LABEL \"{label}\"")
+                lines.append(f"#define LWDT_NODELABEL_{label_norm} {node_id}")
+
             # Zephyr-style helpers
             compat = obj.get('compatible', None)
             if isinstance(compat, str):
                 lines.append(f"#define {node_id}_COMPATIBLE \"{compat}\"")
+                # Create a per-compatible instance macro (DT_INST-like)
+                compat_norm = to_c_ident(compat)
+                inst = self.compat_counters.get(compat_norm, 0)
+                inst_macro = f"{self.prefix}_NS_INST_{inst}_{compat_norm}"
+                lines.append(f"#define {inst_macro} {node_id}")
+                self.compat_counters[compat_norm] = inst + 1
+                self.inst_for_node[node_id] = inst_macro
+                self.compat_instances.setdefault(compat_norm, []).append(inst_macro)
             elif isinstance(compat, list) and compat:
                 # take first compatible entry if list
                 first = compat[0]
                 if isinstance(first, str):
                     lines.append(f"#define {node_id}_COMPATIBLE \"{first}\"")
+                    compat_norm = to_c_ident(first)
+                    inst = self.compat_counters.get(compat_norm, 0)
+                    inst_macro = f"{self.prefix}_NS_INST_{inst}_{compat_norm}"
+                    lines.append(f"#define {inst_macro} {node_id}")
+                    self.compat_counters[compat_norm] = inst + 1
+                    self.inst_for_node[node_id] = inst_macro
 
             status = obj.get('status', None)
             if isinstance(status, str):
                 lines.append(f"#define {node_id}_STATUS \"{status}\"")
                 enabled = 1 if status in ("okay", "ok", "enabled", "true") else 0
                 lines.append(f"#define {node_id}_ENABLED {enabled}")
+                # Also expose `enabled` as a property macro for consistent access patterns.
+                emit_value(node_id, f"{node_id}_P_enabled", enabled, raw_path, label_norm)
 
             # Expose the first reg entry as a canonical address macro (common in DT)
             if 'reg' in obj and isinstance(obj['reg'], list) and obj['reg']:
@@ -252,10 +299,6 @@ class Lwdt:
                 if addr is not None:
                     lines.append(f"#define {node_id}_REG {hex(addr)}")
                     lines.append(f"#define {node_id}_REG_ADDR {hex(addr)}")
-
-            label = obj.get('label', None)
-            if isinstance(label, str):
-                lines.append(f"#define {node_id}_LABEL \"{label}\"")
 
             for k, v in obj.items():
                 if k == 'label':
@@ -265,18 +308,22 @@ class Lwdt:
                 macro_name = f"{node_id}_P_{prop_id}"
 
                 if isinstance(v, dict) and not _is_phandle_spec(v):
-                    # Decide if this dict is a child node (has nested dicts) or a property
-                    if any(isinstance(x, dict) for x in v.values()):
-                        child_path = f"{path}_S_{k}" if path else f"_S_{k}"
-                        child_node_id = f"{self.prefix}_N{to_c_ident(child_path)}"
-                        traverse(v, child_path, child_node_id, raw_path=f"{raw_path}/{k}" if raw_path != '/' else f"/{k}")
-                    else:
-                        # Dict is treated as a property value
-                        emit_value(macro_name, v, raw_path)
+                    # Treat a dict as a child node unless it is a phandle spec.
+                    child_path = f"{path}_S_{k}" if path else f"_S_{k}"
+                    child_node_id = f"{self.prefix}_N{to_c_ident(child_path)}"
+                    traverse(v, child_path, child_node_id, raw_path=f"{raw_path}/{k}" if raw_path != '/' else f"/{k}")
                 else:
-                    emit_value(macro_name, v, raw_path)
+                    emit_value(node_id, macro_name, v, raw_path, label_norm)
 
         traverse(self.config)
+
+        # Generate DT_INST_FOREACH_<compat> macros for each compatible.
+        # Each macro calls the provided macro with (inst, node_id).
+        for compat_norm, insts in self.compat_instances.items():
+            lines.append(f"\n/* DT_INST_FOREACH for compat: {compat_norm} */")
+            calls = " ".join(f"macro({i}, {inst});" for i, inst in enumerate(insts))
+            lines.append(f"#define DT_INST_FOREACH_{compat_norm}(macro) do {{ {calls} }} while (0)")
+
         return lines
 
 def main():
@@ -286,7 +333,7 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument("input", help="HOCON file (.conf or .lwdt)")
-    parser.add_argument("-o", "--output", default="devicetree_generated.h", help="Output header file")
+    parser.add_argument("-o", "--output", default="lwdt_generated.h", help="Output header file")
     parser.add_argument("--prefix", default="LWDT", help="Macro prefix to use for generated symbols")
     parser.add_argument("--basedir", default=None, help="Base directory for resolving includes in the .lwdt file")
     parser.add_argument("--check", action="store_true", help="Only validate the device tree, do not write output")

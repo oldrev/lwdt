@@ -4,31 +4,30 @@ This repository contains a simple **Lightweight Device Tree (LWDT)** generator w
 
 ## Components
 
-- `lwdt2h.py`: Generates a C header (`devicetree_generated.h`) from a lightweight HOCON-based device tree (`.lwdt`).
+- `lwdt2h.py`: Generates a C header (`lwdt_generated.h`) from a lightweight HOCON-based device tree (`.lwdt`).
 - `dt/board.lwdt`: Example root device tree.
 - `dt/soc/esp32/esp32.lwdt`: Example included device tree fragment.
 - `include/lwdt.h`: Helper macros for consuming generated DT macros.
-- `include/demo_dt.c`: A small C program that reads values from the generated device tree header.
-- `build.ninja`: A Ninja build file to generate headers and compile the test program.
+- `demo/demo_dt.c`: A small C program that reads values from the generated device tree header.
+- `build.ninja`: A Ninja build file to generate headers, compile the test program, and run it by default.
 
 ## Quick Start
 
-### 1) Generate device tree header + build test binary
+### 1) Generate device tree header, build the test binary, and run it
 
 ```sh
 ninja -f build.ninja
 ```
 
-### 2) Run the test program
+If you want to run the binary manually:
 
-```sh
-./build/test_dt.exe
-```
+- Linux / macOS: `./build/demo_dt`
+- Windows: `./build/demo_dt.exe`
 
 ## Adding / Editing Device Trees
 
 - Update `dt/board.lwdt` (or create additional `.lwdt` files under `dt/`).
-- Run `python lwdt2h.py -o build/devicetree_generated.h dt/board.lwdt` to regenerate the header.
+- Run `python lwdt2h.py -o build/lwdt_generated.h dt/board.lwdt` to regenerate the header.
 
 ## Notes
 

@@ -2,12 +2,16 @@
 # Run with: ninja -f build.ninja
 
 rule gen_dt
-  command = python lwdt2h.py -o build/devicetree_generated.h dt/board.lwdt
+  command = python lwdt2h.py -o build/lwdt_generated.h dt/board.lwdt
   description = Generating device tree header
 
 rule cc
   command = gcc -std=c11 -Wall -Wextra -Ibuild -Iinclude -o $out $in
   description = Compiling $out
+
+rule run
+  command = python -c "import os,sys,subprocess; p=os.path.join('build','demo_dt'); p += '.exe' if os.name=='nt' else ''; sys.exit(subprocess.call([p]))"
+  description = Running demo executable
 
 rule mkdir
   command = python -c "import os; os.makedirs('build', exist_ok=True)"
@@ -15,8 +19,11 @@ rule mkdir
 
 build build/.dir: mkdir
 
-build build/devicetree_generated.h: gen_dt | build/.dir
+# Ensure the generated header is rebuilt when any source DT file changes.
+build build/lwdt_generated.h: gen_dt dt/board.lwdt dt/soc/esp32/esp32.lwdt | build/.dir
 
-build build/demo_dt.exe: cc demo/demo_dt.c | build/devicetree_generated.h
+build build/demo_dt: cc demo/demo_dt.c | build/lwdt_generated.h
 
-default build/demo_dt.exe
+build run: run build/demo_dt
+
+default run
