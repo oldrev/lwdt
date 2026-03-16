@@ -32,6 +32,29 @@ def _is_phandle_spec(obj):
     return isinstance(obj, dict) and ('node' in obj or 'phandle' in obj)
 
 
+def _is_explicit_ref_string(val):
+    """Detect string forms that are clearly intended to be node references."""
+    return isinstance(val, str) and (
+        val.startswith('#')
+        or val.startswith('/')
+        or val.startswith('./')
+        or val.startswith('../')
+        or '/' in val
+    )
+
+
+def _is_child_node_dict(obj):
+    """Heuristically distinguish child nodes from flat dict properties."""
+    if not isinstance(obj, dict) or _is_phandle_spec(obj):
+        return False
+
+    node_keys = {'compatible', 'status', 'reg', 'label'}
+    if any(key in obj for key in node_keys):
+        return True
+
+    return any(isinstance(value, dict) for value in obj.values())
+
+
 def _format_value(val):
     """Format a scalar value for C macro output."""
     if isinstance(val, bool):
@@ -180,6 +203,52 @@ class Lwdt:
     def generate_macros(self, strict=False):
         """Second pass: generate C macro definitions from the device tree."""
         lines = []
+        self.errors = []
+        self.warnings = []
+
+        def emit_alias(name):
+            lines.append(f"#define {name[:-8]}_PH {name}") if name.endswith('_PHANDLE') else None
+
+        def emit_reference_macros(node_id, macro_base, ref, raw_path, label_norm=None, explicit=False):
+            """Emit macros for a node reference while preserving the original scalar value."""
+            target = self._resolve_node(ref, current_raw=raw_path)
+            if not target:
+                if strict and explicit:
+                    self.errors.append(
+                        f"Unresolved node reference '{ref}' at {raw_path} ({macro_base})"
+                    )
+                return False
+
+            lines.append(f"#define {macro_base}_NODE {target['node_id']}")
+            lines.append(f"#define {macro_base}_PHANDLE {target['node_id']}")
+            emit_alias(f"{macro_base}_PHANDLE")
+            if label_norm:
+                suffix = f"{macro_base}_NODE"[len(node_id):]
+                lines.append(f"#define LWDT_NODELABEL_{label_norm}{suffix} {macro_base}_NODE")
+                suffix = f"{macro_base}_PHANDLE"[len(node_id):]
+                lines.append(f"#define LWDT_NODELABEL_{label_norm}{suffix} {macro_base}_PHANDLE")
+                lines.append(f"#define LWDT_NODELABEL_{label_norm}{suffix[:-8]}_PH {macro_base}_PHANDLE")
+
+            inst_macro = self.inst_for_node.get(node_id)
+            if inst_macro:
+                suffix = f"{macro_base}_NODE"[len(node_id):]
+                lines.append(f"#define {inst_macro}{suffix} {macro_base}_NODE")
+                suffix = f"{macro_base}_PHANDLE"[len(node_id):]
+                lines.append(f"#define {inst_macro}{suffix} {macro_base}_PHANDLE")
+                lines.append(f"#define {inst_macro}{suffix[:-8]}_PH {macro_base}_PHANDLE")
+
+            if 'reg' in target['data'] and len(target['data']['reg']) > 0:
+                addr = safe_int(target['data']['reg'][0])
+                if addr is not None:
+                    lines.append(f"#define {macro_base}_VAL_ADDR {hex(addr)}")
+                    if label_norm:
+                        suffix = f"{macro_base}_VAL_ADDR"[len(node_id):]
+                        lines.append(f"#define LWDT_NODELABEL_{label_norm}{suffix} {macro_base}_VAL_ADDR")
+                    if inst_macro:
+                        suffix = f"{macro_base}_VAL_ADDR"[len(node_id):]
+                        lines.append(f"#define {inst_macro}{suffix} {macro_base}_VAL_ADDR")
+
+            return True
 
         def emit_value(node_id, macro_base, value, raw_path, label_norm=None):
             """Emit macros for a value that may be scalar, list, dict, or phandle."""
@@ -205,23 +274,14 @@ class Lwdt:
             if _is_phandle_spec(value):
                 ph = value.get('node') or value.get('phandle')
                 if isinstance(ph, str):
-                    target = self._resolve_node(ph, current_raw=raw_path)
-                    if target:
-                        lines.append(f"#define {macro_base}_NODE {target['node_id']}")
-                        lines.append(f"#define {macro_base}_PHANDLE {target['node_id']}")
-                        if 'reg' in target['data'] and len(target['data']['reg']) > 0:
-                            addr = safe_int(target['data']['reg'][0])
-                            if addr is not None:
-                                lines.append(f"#define {macro_base}_VAL_ADDR {hex(addr)}")
-                        emit_alias(f"{macro_base}_NODE")
-                        emit_alias(f"{macro_base}_PHANDLE")
-                        if 'reg' in target['data'] and len(target['data']['reg']) > 0:
-                            addr = safe_int(target['data']['reg'][0])
-                            if addr is not None:
-                                emit_alias(f"{macro_base}_VAL_ADDR")
-                    else:
-                        # no target found; fall through (no macro emitted)
-                        pass
+                    emit_reference_macros(
+                        node_id,
+                        macro_base,
+                        ph,
+                        raw_path,
+                        label_norm=label_norm,
+                        explicit=True,
+                    )
 
                 pin = safe_int(value.get('pin', None))
                 if pin is not None:
@@ -243,6 +303,15 @@ class Lwdt:
             # Scalar (including nested bool/int/str)
             lines.append(f"#define {macro_base} {_format_value(value)}")
             emit_alias(f"{macro_base}")
+            if isinstance(value, str):
+                emit_reference_macros(
+                    node_id,
+                    macro_base,
+                    value,
+                    raw_path,
+                    label_norm=label_norm,
+                    explicit=_is_explicit_ref_string(value),
+                )
             return True
 
         def traverse(obj, path="", node_id="", raw_path="/"):
@@ -307,8 +376,8 @@ class Lwdt:
                 prop_id = to_c_ident(k)
                 macro_name = f"{node_id}_P_{prop_id}"
 
-                if isinstance(v, dict) and not _is_phandle_spec(v):
-                    # Treat a dict as a child node unless it is a phandle spec.
+                if _is_child_node_dict(v):
+                    # Treat node-like dicts as child nodes; flatten other dicts into property macros.
                     child_path = f"{path}_S_{k}" if path else f"_S_{k}"
                     child_node_id = f"{self.prefix}_N{to_c_ident(child_path)}"
                     traverse(v, child_path, child_node_id, raw_path=f"{raw_path}/{k}" if raw_path != '/' else f"/{k}")

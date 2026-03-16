@@ -24,6 +24,14 @@ If you want to run the binary manually:
 - Linux / macOS: `./build/demo_dt`
 - Windows: `./build/demo_dt.exe`
 
+### 2) Run the Python regression tests
+
+```sh
+python -m pytest
+```
+
+The test suite covers header generation, node-reference resolution, strict-mode failures, and compatibility aliases for phandle macros.
+
 ## Adding / Editing Device Trees
 
 - Update `dt/board.lwdt` (or create additional `.lwdt` files under `dt/`).

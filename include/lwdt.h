@@ -65,8 +65,10 @@
 
 /* Phandle / node reference helpers (node is a label-like token) */
 #define LWDT_PROP_NODE(node, prop) node##_P_##prop##_NODE
-#define LWDT_PROP_PH(node, prop) node##_P_##prop##_PH
+#define LWDT_PROP_PHANDLE(node, prop) node##_P_##prop##_PHANDLE
+#define LWDT_PROP_PH(node, prop) LWDT_PROP_PHANDLE(node, prop)
 
 /* Zephyr-style phandle helpers */
 #define LWDT_PROP_NODE_PATH2(a, b, prop) LWDT_NS_##a##_S_##b##_P_##prop##_NODE
-#define LWDT_PROP_PH_PATH2(a, b, prop) LWDT_NS_##a##_S_##b##_P_##prop##_PH
+#define LWDT_PROP_PHANDLE_PATH2(a, b, prop) LWDT_NS_##a##_S_##b##_P_##prop##_PHANDLE
+#define LWDT_PROP_PH_PATH2(a, b, prop) LWDT_PROP_PHANDLE_PATH2(a, b, prop)
