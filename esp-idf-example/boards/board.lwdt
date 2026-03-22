@@ -1,0 +1,9 @@
+# ESP-IDF 示例专用轻量设备树
+# 包含基础 SoC GPIO 定义，参考顶层 dt/soc/esp32/esp32.lwdt
+include <soc/esp32/esp32.lwdt>
+
+# 定义一个状态 LED 节点，绑定到 gpio0 物理引脚 2
+status_led {
+    label = "status_led"
+    enable_gpios = { node: "gpio0", pin: 2, flags: 0 }
+}

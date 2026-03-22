@@ -1,0 +1,12 @@
+# 测试用板子 (ESP32-C3 Supermini)
+# 引用 ESP32C3 SoC 定义
+include <soc/esp32/esp32c3.lwdt>
+
+# root compatible 配置为 nologo,esp32c3supermini
+compatible = "nologo,esp32c3supermini"
+
+status_led {
+    label = "status_led"
+    # 引脚接 GPIO8，低电平点亮，flags=1 代表 active-low
+    enable_gpios = { node: "gpio0", pin: 8, flags: 1 }
+}
