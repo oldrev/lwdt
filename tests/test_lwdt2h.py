@@ -61,8 +61,10 @@ def test_strict_fails_on_unresolved_explicit_string_reference(tmp_path: Path) ->
     source = tmp_path / "bad_ref.lwdt"
     source.write_text(
         """
-soc {
-    bad-ref = "#/soc/missing"
+{
+  soc: {
+    bad_ref: "#/soc/missing",
+  },
 }
 """.strip(),
         encoding="utf-8",
@@ -78,8 +80,10 @@ def test_strict_fails_on_unresolved_phandle_spec(tmp_path: Path) -> None:
     source = tmp_path / "bad_phandle.lwdt"
     source.write_text(
         """
-soc {
-    peripheral = { node: "missing-device", pin: 3 }
+{
+  soc: {
+    peripheral: { node: "missing-device", pin: 3 },
+  },
 }
 """.strip(),
         encoding="utf-8",
@@ -91,7 +95,7 @@ soc {
     assert "Unresolved node reference 'missing-device'" in result.stderr
 
 
-def test_angle_include_resolves_from_basedir(tmp_path: Path) -> None:
+def test_import_resolves_from_basedir(tmp_path: Path) -> None:
     include_base = tmp_path / "dt"
     source_dir = tmp_path / "app"
     include_base.mkdir()
@@ -99,21 +103,23 @@ def test_angle_include_resolves_from_basedir(tmp_path: Path) -> None:
 
     (include_base / "soc.lwdt").write_text(
         """
-soc {
-    uart0 {
-        compatible = "demo,uart"
-        reg = [ 0x4000 ]
-    }
+{
+  soc: {
+    uart0: {
+      compatible: "demo,uart",
+      reg: [16384],
+    },
+  },
 }
 """.strip(),
         encoding="utf-8",
     )
     (source_dir / "board.lwdt").write_text(
         """
-include <soc.lwdt>
-
-chosen {
-    console = "#/soc/uart0"
+(import "soc.lwdt") + {
+  chosen: {
+    console: "#/soc/uart0",
+  },
 }
 """.strip(),
         encoding="utf-8",
@@ -128,7 +134,7 @@ chosen {
     assert "#define LWDT_N_ROOT_P_chosen_console_NODE LWDT_NS_soc_S_uart0" in header
 
 
-def test_quoted_include_stays_relative_to_including_file(tmp_path: Path) -> None:
+def test_import_stays_relative_to_including_file(tmp_path: Path) -> None:
     include_base = tmp_path / "dt"
     source_dir = tmp_path / "app"
     drivers_dir = source_dir / "drivers"
@@ -138,28 +144,31 @@ def test_quoted_include_stays_relative_to_including_file(tmp_path: Path) -> None
 
     (include_base / "common.lwdt").write_text(
         """
-common {
-    from-base = true
+{
+  common: {
+    from_base: true,
+  },
 }
 """.strip(),
         encoding="utf-8",
     )
     (drivers_dir / "sensor.lwdt").write_text(
         """
-sensor {
-    compatible = "demo,sensor"
-    reg = [ 0x5000 ]
+{
+  sensor: {
+    compatible: "demo,sensor",
+    reg: [20480],
+  },
 }
 """.strip(),
         encoding="utf-8",
     )
     (source_dir / "board.lwdt").write_text(
         """
-include <common.lwdt>
-include "drivers/sensor.lwdt"
-
-chosen {
-    device = "#/sensor"
+(import "common.lwdt") + (import "drivers/sensor.lwdt") + {
+  chosen: {
+    device: "#/sensor",
+  },
 }
 """.strip(),
         encoding="utf-8",
@@ -172,17 +181,17 @@ chosen {
     header = output.read_text(encoding="utf-8")
     assert "#define LWDT_NS_sensor_EXISTS 1" in header
     assert "#define LWDT_N_ROOT_P_chosen_device_NODE LWDT_NS_sensor" in header
-    assert "#define LWDT_N_ROOT_P_common_from_base 1" in header
+    assert "#define LWDT_NS_common_P_from_base 1" in header
 
 
-def test_angle_include_requires_basedir(tmp_path: Path) -> None:
+def test_missing_import_reports_search_paths(tmp_path: Path) -> None:
     source = tmp_path / "board.lwdt"
     source.write_text(
         """
-include <missing.lwdt>
-
-root {
-    ok = true
+(import "missing.lwdt") + {
+  root: {
+    ok: true,
+  },
 }
 """.strip(),
         encoding="utf-8",
@@ -191,4 +200,4 @@ root {
     result = run_lwdt("--check", str(source), cwd=tmp_path)
 
     assert result.returncode != 0
-    assert "requires --basedir" in result.stderr
+    assert "could not import 'missing.lwdt'" in result.stderr

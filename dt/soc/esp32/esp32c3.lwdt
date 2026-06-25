@@ -1,10 +1,5 @@
-# ESP32C3 基础设备树（被其他 lwdt 文件 include）
-# 这里放 SoC 以及常用的外设定义
-
-model = "Borneo-Industrial-V1"
-compatible = "bst,borneo-lyfi"
-
-soc {
-    #address-cells = 1
-    #size-cells = 1
+{
+  model: "Borneo-Industrial-V1",
+  compatible: "bst,borneo-lyfi",
+  soc: {},
 }

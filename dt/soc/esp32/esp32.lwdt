@@ -1,31 +1,25 @@
-# ESP32 基础设备树（被其他 lwdt 文件 include）
-# 这里放 SoC 以及常用的外设定义
+{
+  model: "Borneo-Industrial-V1",
+  compatible: "bst,borneo-lyfi",
 
-model = "Borneo-Industrial-V1"
-compatible = "bst,borneo-lyfi"
+  soc: {
+    i2c0: {
+      compatible: "esp32,i2c",
+      reg: [1061158912, 4096, 1061163008, 256],
+      interrupts: [12, 1],
+      status: "okay",
 
-soc {
-    #address-cells = 1
-    #size-cells = 1
+      bme280: {
+        compatible: "bosch,bme280",
+        reg: [118],
+        oversampling: 4,
+      },
+    },
 
-    i2c0 {
-        compatible = "esp32,i2c"
-        # 多段地址直接写成数组
-        reg = [0x3f400000, 0x1000, 0x3f401000, 0x100]
-        interrupts = [12, 1]
-        status = "okay"
-
-        # 嵌套子设备
-        bme280 {
-            compatible = "bosch,bme280"
-            reg = [0x76]
-            oversampling = 4
-        }
-    }
-
-    gpio0 {
-        compatible = "esp32,gpio"
-        reg = [0x3f403000, 0x400]
-        gpio-controller = true
-    }
+    gpio0: {
+      compatible: "esp32,gpio",
+      reg: [1061171200, 1024],
+      gpio_controller: true,
+    },
+  },
 }

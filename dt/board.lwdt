@@ -1,32 +1,28 @@
-# 引入 ESP32 基础配置（包含 SoC / GPIO / I2C 等）
-include <soc/esp32/esp32.lwdt>
+local esp32 = import "soc/esp32/esp32.lwdt";
 
-# 业务逻辑层（代替 lighting 节点）
-lighting {
-    status-rgb {
-        label = "status_rgb"
-        # 引用：HOCON 可以用字符串模拟 Phandle
-        pwms = ["led_pwm", 0, 5000, 0, "led_pwm", 1, 5000, 0]
-        # 改为字典结构，更便于阅读
-        enable-gpios = { node: "gpio0", pin: 15, flags: 1 }
-    }
-    modes = ["manual", "auto", "cloud-remote"]
-}
+esp32 + {
+  lighting: {
+    status_rgb: {
+      label: "status_rgb",
+      pwms: ["led_pwm", 0, 5000, 0, "led_pwm", 1, 5000, 0],
+      enable_gpios: { node: "gpio0", pin: 15, flags: 1 },
+    },
+    modes: ["manual", "auto", "cloud-remote"],
+  },
 
-# 示例：将一个 PCF8563 RTC 连接到 i2c0 总线
-soc {
-    i2c0 {
-        pcf8563_rtc {
-            label = "pcf8563"
-            compatible = "nxp,pcf8563"
-            reg = [0x51]
-        }
-        pcf8563_rtc_2 {
-            label = "pcf8563_2"
-            compatible = "nxp,pcf8563"
-            reg = [0x52]
-        }
-        # Add a label to i2c0 so DT_NODELABEL(i2c0) works in demos
-        label = "i2c0"
-    }
+  soc+: {
+    i2c0+: {
+      pcf8563_rtc: {
+        label: "pcf8563",
+        compatible: "nxp,pcf8563",
+        reg: [81],
+      },
+      pcf8563_rtc_2: {
+        label: "pcf8563_2",
+        compatible: "nxp,pcf8563",
+        reg: [82],
+      },
+      label: "i2c0",
+    },
+  },
 }

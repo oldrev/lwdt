@@ -7,7 +7,7 @@
 
 #define PRINT_PCF_INST(idx, node) \
     do { \
-        printf("pcf8563[%d] compatible=%s, reg=0x%s\n", (idx), \
+        printf("pcf8563[%d] compatible=%s, reg=0x%d\n", (idx), \
                LWDT_PROP(node, compatible), \
                LWDT_PROP_BY_IDX(node, reg, 0)); \
     } while (0)

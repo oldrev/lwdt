@@ -4,13 +4,15 @@ import json
 import os
 import re
 import sys
-import tempfile
-from pyhocon import ConfigFactory
+try:
+    import _jsonnet
+except ImportError:  # pragma: no cover - exercised when dependency is absent
+    _jsonnet = None
 
 COPYRIGHT = "Copyright (c) 2026 XXX"
 
 def to_c_ident(s):
-    """Convert a HOCON path to a C macro identifier."""
+    """Convert a Jsonnet path to a C macro identifier."""
     return re.sub(r'[./@,\-]', '_', s).strip('_')
 
 def safe_int(val):
@@ -69,56 +71,41 @@ def _format_value(val):
     return f'"{val}"'
 
 
-def _resolve_include_path(include_text: str, include_kind: str, current_dir: str, include_base_dir: str | None):
-    """Resolve an include path according to its delimiter style."""
-    if include_kind == 'quote':
-        return os.path.normpath(os.path.join(current_dir, include_text))
+def _jsonnet_import_callback(include_base_dir: str | None = None):
+    """Resolve Jsonnet imports relative to the importer, then --basedir."""
 
-    if include_base_dir:
-        return os.path.normpath(os.path.join(include_base_dir, include_text))
+    def callback(base: str, rel: str):
+        candidates = []
+        if base:
+            base_dir = base if os.path.isdir(base) else os.path.dirname(base)
+            candidates.append(os.path.normpath(os.path.join(base_dir, rel)))
+        if include_base_dir:
+            candidates.append(os.path.normpath(os.path.join(include_base_dir, rel)))
 
-    raise ValueError(
-        f"Angle-bracket include <{include_text}> requires --basedir to be set"
+        for path in candidates:
+            if os.path.exists(path):
+                with open(path, 'rb') as f:
+                    return path, f.read()
+
+        searched = ', '.join(candidates) if candidates else rel
+        raise RuntimeError(f"could not import '{rel}' (searched: {searched})")
+
+    return callback
+
+
+def parse_lwdt_jsonnet(file_path: str, include_base_dir: str | None = None):
+    """Evaluate a Jsonnet-backed .lwdt file and return plain Python data."""
+    if _jsonnet is None:
+        raise RuntimeError(
+            "Jsonnet support requires the Python jsonnet package. "
+            "Install it with: python -m pip install jsonnet"
+        )
+
+    json_text = _jsonnet.evaluate_file(
+        file_path,
+        import_callback=_jsonnet_import_callback(include_base_dir),
     )
-
-
-def _resolve_includes(file_path: str, include_base_dir: str | None = None, seen=None):
-    """Resolve and inline include directives in a .lwdt file.
-
-    Includes are resolved as follows:
-    - include "...": relative to the including file's directory.
-    - include <...>: relative to include_base_dir.
-
-    The returned text contains the recursively expanded contents of each included
-    file, with a simple cycle guard to avoid infinite recursion.
-    """
-    if seen is None:
-        seen = set()
-
-    file_path = os.path.abspath(file_path)
-    if file_path in seen:
-        return ''
-    seen.add(file_path)
-
-    base_dir = os.path.dirname(file_path)
-    out_lines = []
-
-    include_re = re.compile(r'^\s*include\s+(?:"([^"]+)"|<([^>]+)>)')
-    with open(file_path, 'r', encoding='utf-8') as f:
-        for line in f:
-            m = include_re.match(line)
-            if m:
-                quoted_path = m.group(1)
-                angle_path = m.group(2)
-                include_text = quoted_path or angle_path
-                include_kind = 'quote' if quoted_path is not None else 'angle'
-                inc_path = _resolve_include_path(include_text, include_kind, base_dir, include_base_dir)
-                out_lines.append(_resolve_includes(inc_path, include_base_dir=include_base_dir, seen=seen))
-                out_lines.append('\n')
-            else:
-                out_lines.append(line)
-
-    return ''.join(out_lines)
+    return json.loads(json_text)
 
 
 class Lwdt:
@@ -415,17 +402,17 @@ class Lwdt:
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Generate a C header from a lightweight HOCON-based device tree.",
+        description="Generate a C header from a lightweight Jsonnet-based device tree.",
         epilog=f"{COPYRIGHT}",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    parser.add_argument("input", help="HOCON file (.conf or .lwdt)")
+    parser.add_argument("input", help="Jsonnet file (.lwdt or .jsonnet)")
     parser.add_argument("-o", "--output", default="lwdt_generated.h", help="Output header file")
     parser.add_argument("--prefix", default="LWDT", help="Macro prefix to use for generated symbols")
     parser.add_argument(
         "--basedir",
         default=None,
-        help="Base directory for include <...> resolution",
+        help="Additional base directory for Jsonnet import resolution",
     )
     parser.add_argument("--check", action="store_true", help="Only validate the device tree, do not write output")
     parser.add_argument("--strict", action="store_true", help="Treat unresolved references as errors and exit non-zero")
@@ -440,20 +427,8 @@ def main():
     base_dir = os.path.abspath(args.basedir) if args.basedir else None
 
     try:
-        # Pre-resolve include paths to absolute paths so pyhocon can load nested includes correctly.
-        resolved = _resolve_includes(input_file, include_base_dir=base_dir if args.basedir else None)
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.lwdt', delete=False, encoding='utf-8') as tmp:
-            tmp.write(resolved)
-            tmp_path = tmp.name
-
-        try:
-            conf = ConfigFactory.parse_file(tmp_path)
-        finally:
-            try:
-                os.remove(tmp_path)
-            except OSError:
-                pass
-    except (OSError, ValueError) as e:
+        conf = parse_lwdt_jsonnet(input_file, include_base_dir=base_dir if args.basedir else None)
+    except (OSError, ValueError, RuntimeError) as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
     

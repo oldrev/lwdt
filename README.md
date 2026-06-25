@@ -4,7 +4,7 @@ This repository contains a simple **Lightweight Device Tree (LWDT)** generator w
 
 ## Components
 
-- `lwdt2h.py`: Generates a C header (`lwdt_generated.h`) from a lightweight HOCON-based device tree (`.lwdt`).
+- `lwdt2h.py`: Generates a C header (`lwdt_generated.h`) from a lightweight Jsonnet-based device tree (`.lwdt`).
 - `dt/board.lwdt`: Example root device tree.
 - `dt/soc/esp32/esp32.lwdt`: Example included device tree fragment.
 - `include/lwdt.h`: Helper macros for consuming generated DT macros.
@@ -37,11 +37,13 @@ The test suite covers header generation, node-reference resolution, strict-mode 
 - Update `dt/board.lwdt` (or create additional `.lwdt` files under `dt/`).
 - Run `python lwdt2h.py -o build/lwdt_generated.h dt/board.lwdt` to regenerate the header.
 
-### Include Semantics
+### Import Semantics
 
-- `include "path/file.lwdt"` resolves relative to the file that contains the include.
-- `include <path/file.lwdt>` resolves relative to `--basedir`.
-- When using angle-bracket includes, pass a base directory such as `python lwdt2h.py --basedir dt -o build/lwdt_generated.h dt/board.lwdt`.
+Device trees are Jsonnet expressions. Use `import "path/file.lwdt"` and object addition (`+`) or nested field addition (`field+:`) to compose fragments.
+
+- Imports are resolved relative to the file that contains the import first.
+- If the import is not found there, `--basedir` is used as an additional import root.
+- Example: `python lwdt2h.py --basedir dt -o build/lwdt_generated.h dt/board.lwdt`.
 
 ## Notes
 
