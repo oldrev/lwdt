@@ -1,0 +1,56 @@
+################################## SYS_INIT #####################
+
+[sections:drvfx_init_EARLY]
+entries:
+    .drvfx_init_EARLY+
+
+[sections:drvfx_init_PRE_KERNEL_1]
+entries:
+    .drvfx_init_PRE_KERNEL_1+
+
+[sections:drvfx_init_PRE_KERNEL_2]
+entries:
+    .drvfx_init_PRE_KERNEL_2+
+
+[sections:drvfx_init_POST_KERNEL]
+entries:
+    .drvfx_init_POST_KERNEL+
+
+[sections:drvfx_init_APPLICATION]
+entries:
+    .drvfx_init_APPLICATION+
+
+[scheme:drvfx_init_default]
+entries:
+    drvfx_init_EARLY -> flash_rodata
+    drvfx_init_PRE_KERNEL_1 -> flash_rodata
+    drvfx_init_PRE_KERNEL_2 -> flash_rodata
+    drvfx_init_POST_KERNEL -> flash_rodata
+    drvfx_init_APPLICATION -> flash_rodata
+
+[mapping:drvfx_init]
+archive: *
+entries:
+    * (drvfx_init_default);
+        drvfx_init_EARLY -> flash_rodata KEEP() SORT(name) SURROUND(drvfx_init_EARLY),
+        drvfx_init_PRE_KERNEL_1 -> flash_rodata KEEP() SORT(name) SURROUND(drvfx_init_PRE_KERNEL_1),
+        drvfx_init_PRE_KERNEL_2 -> flash_rodata KEEP() SORT(name) SURROUND(drvfx_init_PRE_KERNEL_2),
+        drvfx_init_POST_KERNEL -> flash_rodata KEEP() SORT(name) SURROUND(drvfx_init_POST_KERNEL),
+        drvfx_init_APPLICATION -> flash_rodata KEEP() SORT(name) SURROUND(drvfx_init_APPLICATION)
+
+
+################################## DEVICES #####################
+
+[sections:drvfx_device]
+entries:
+    .drvfx_device+
+
+[scheme:drvfx_device_default]
+entries:
+    drvfx_device -> flash_rodata
+
+[mapping:drvfx_device]
+archive: *
+entries:
+    * (drvfx_device_default);
+        drvfx_device -> flash_rodata KEEP() SORT(name) SURROUND(drvfx_device)

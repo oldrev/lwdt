@@ -1,0 +1,9 @@
+menu "Drvfx Configuration"
+
+    menu "Drivers"
+        rsource "./drivers/i2c/Kconfig"
+        rsource "./drivers/spi/Kconfig"
+        rsource "./drivers/rtc/Kconfig"
+    endmenu
+
+endmenu
