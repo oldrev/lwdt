@@ -21,7 +21,7 @@ def run_lwdt(*args: str, cwd: Path | None = None) -> subprocess.CompletedProcess
 
 def generate_header(tmp_path: Path, source: str) -> str:
     output = tmp_path / "generated.h"
-    result = run_lwdt("--basedir", "dt", "-o", str(output), source)
+    result = run_lwdt("--basedir", str(REPO_ROOT / "components/lwdt/dt"), "-o", str(output), source)
     assert result.returncode == 0, result.stderr or result.stdout
     return output.read_text(encoding="utf-8")
 
@@ -37,21 +37,21 @@ def test_board_emits_phandle_compatibility_aliases(tmp_path: Path) -> None:
 
 
 def test_complex_tree_emits_string_reference_macros(tmp_path: Path) -> None:
-    header = generate_header(tmp_path, "dt/board_complex.lwdt")
+    header = generate_header(tmp_path, "components/lwdt/dt/board_complex.lwdt")
 
     assert "#define LWDT_NS_soc_P_fans_IDX_0_NODE LWDT_NS_soc_S_spi0" in header
     assert "#define LWDT_NS_soc_P_fans_IDX_2_NODE LWDT_NS_soc_S_spi0" in header
 
 
 def test_board2_relative_reference_resolves_to_node(tmp_path: Path) -> None:
-    header = generate_header(tmp_path, "dt/board2.lwdt")
+    header = generate_header(tmp_path, "components/lwdt/dt/board2.lwdt")
 
     assert "#define LWDT_NS_power_P_spi_ref_NODE LWDT_NS_soc_S_spi0" in header
     assert "#define LWDT_NS_power_P_capacitor_NODE LWDT_NS_power" in header
 
 
 def test_flat_dict_properties_do_not_become_child_nodes(tmp_path: Path) -> None:
-    header = generate_header(tmp_path, "dt/board_complex.lwdt")
+    header = generate_header(tmp_path, "components/lwdt/dt/board_complex.lwdt")
 
     assert "#define LWDT_NS_soc_S_spi0_S_touchscreen_P_config_mode \"4wire\"" in header
     assert "LWDT_NS_soc_S_spi0_S_touchscreen_S_config_EXISTS" not in header

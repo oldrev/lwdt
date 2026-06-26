@@ -45,10 +45,15 @@ def _is_explicit_ref_string(val):
     )
 
 
-def _is_child_node_dict(obj):
+def _is_child_node_dict(key, obj, parent_path=""):
     """Heuristically distinguish child nodes from flat dict properties."""
     if not isinstance(obj, dict) or _is_phandle_spec(obj):
         return False
+
+    # Top-level device-tree objects are nodes by default. Keep /chosen as a
+    # flat property bag for the existing generated macro convention.
+    if parent_path == "" and key != "chosen":
+        return True
 
     node_keys = {'compatible', 'status', 'reg', 'label'}
     if any(key in obj for key in node_keys):
@@ -427,7 +432,7 @@ class Lwdt:
                 prop_id = to_c_ident(k)
                 macro_name = f"{node_id}_P_{prop_id}"
 
-                if _is_child_node_dict(v):
+                if _is_child_node_dict(k, v, path):
                     # Treat node-like dicts as child nodes; flatten other dicts into property macros.
                     child_path = f"{path}_S_{k}" if path else f"_S_{k}"
                     child_node_id = f"{self.prefix}_N{to_c_ident(child_path)}"

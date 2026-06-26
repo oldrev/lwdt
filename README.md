@@ -436,5 +436,5 @@ level only; real device dependencies should still be expressed with the
 
 LWDT is licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) for details.
 
-Copyright (c) 2026 Wei Li. All rights reserved.
+Copyright © 2026 Wei Li. All rights reserved.
 

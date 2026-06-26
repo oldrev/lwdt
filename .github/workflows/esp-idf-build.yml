@@ -25,7 +25,7 @@ jobs:
         run: python -m pip install --upgrade jsonnet pytest
 
       - name: Run pytest
-        run: python -m pytest tests
+        run: python -m pytest -p no:cacheprovider tests
   build-example:
     name: Build example (${{ matrix.board }})
     runs-on: ubuntu-latest
