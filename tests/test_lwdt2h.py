@@ -263,3 +263,51 @@ def test_missing_import_reports_search_paths(tmp_path: Path) -> None:
 
     assert result.returncode != 0
     assert "could not import 'missing.lwdt'" in result.stderr
+
+
+def test_instance_foreach_status_okay_is_file_scope_friendly(tmp_path: Path) -> None:
+    source = tmp_path / "multi_inst.lwdt"
+    output = tmp_path / "generated.h"
+    source.write_text(
+        """
+{
+  soc: {
+    i2c0: {
+      label: "i2c0",
+      compatible: "esp32,i2c",
+      status: "okay",
+      port: 0,
+      sda_gpio: 4,
+      scl_gpio: 5,
+      clock_frequency: 400000,
+      pullup: true,
+    },
+    i2c1: {
+      label: "i2c1",
+      compatible: "esp32,i2c",
+      status: "disabled",
+      port: 1,
+      sda_gpio: 6,
+      scl_gpio: 7,
+      clock_frequency: 100000,
+      pullup: true,
+    },
+  },
+}
+""".strip(),
+        encoding="utf-8",
+    )
+
+    result = run_lwdt("-o", str(output), str(source), cwd=tmp_path)
+
+    assert result.returncode == 0, result.stderr or result.stdout
+    header = output.read_text(encoding="utf-8")
+    assert (
+        "#define LWDT_INST_FOREACH_esp32_i2c(macro) "
+        "macro(0, LWDT_NS_INST_0_esp32_i2c) macro(1, LWDT_NS_INST_1_esp32_i2c)"
+    ) in header
+    assert (
+        "#define LWDT_INST_FOREACH_STATUS_OKAY_esp32_i2c(macro) "
+        "macro(0, LWDT_NS_INST_0_esp32_i2c)"
+    ) in header
+    assert "do {" not in header

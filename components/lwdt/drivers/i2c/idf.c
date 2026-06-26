@@ -7,6 +7,8 @@
 
 #include "drvfx/drivers/i2c.h"
 #include "drvfx/drvfx.h"
+#include "lwdt/lwdt.h"
+#include "lwdt_generated.h"
 
 #define TAG "drvfx.i2c"
 
@@ -177,16 +179,6 @@ static int drvfx_i2c_idf_init(const struct drvfx_device* dev)
     return 0;
 }
 
-static const struct drvfx_i2c_idf_config s_i2c0_config = {
-    .port = CONFIG_DRVFX_I2C0_PORT,
-    .sda_gpio = CONFIG_DRVFX_I2C0_SDA_GPIO,
-    .scl_gpio = CONFIG_DRVFX_I2C0_SCL_GPIO,
-    .freq_hz = CONFIG_DRVFX_I2C0_FREQ_HZ,
-    .pullup = CONFIG_DRVFX_I2C0_PULLUP,
-};
-
-static struct drvfx_i2c_idf_data s_i2c0_data = { 0 };
-
 static const struct drvfx_i2c_driver_api s_i2c_api = {
     .attach_device = drvfx_i2c_idf_attach_device_impl,
     .detach_device = drvfx_i2c_idf_detach_device_impl,
@@ -196,6 +188,19 @@ static const struct drvfx_i2c_driver_api s_i2c_api = {
     .receive = drvfx_i2c_idf_receive_impl,
 };
 
-DRVFX_NAMED_DEVICE_DEFINE_LEVEL(i2c0, CONFIG_DRVFX_I2C0_NAME, drvfx_i2c_idf_init, &s_i2c0_data,
-                                &s_i2c0_config, PRE_KERNEL_2, DRVFX_INIT_PRE_KERNEL_2_BUS_PRIORITY,
-                                &s_i2c_api);
+#define DRVFX_I2C_IDF_DEFINE(inst, node_id)                                                                            \
+    static const struct drvfx_i2c_idf_config s_i2c_##inst##_config = {                                                 \
+        .port = (i2c_port_num_t)LWDT_PROP(node_id, port),                                                              \
+        .sda_gpio = (gpio_num_t)LWDT_PROP(node_id, sda_gpio),                                                          \
+        .scl_gpio = (gpio_num_t)LWDT_PROP(node_id, scl_gpio),                                                          \
+        .freq_hz = LWDT_PROP(node_id, clock_frequency),                                                                \
+        .pullup = LWDT_PROP(node_id, pullup),                                                                          \
+    };                                                                                                                 \
+    static struct drvfx_i2c_idf_data s_i2c_##inst##_data = { 0 };                                                      \
+    DRVFX_DEVICE_DT_INST_DEFINE(inst, esp32_i2c, LWDT_LABEL(node_id), drvfx_i2c_idf_init,                       \
+                                &s_i2c_##inst##_data, &s_i2c_##inst##_config, PRE_KERNEL_2,                           \
+                                DRVFX_INIT_PRE_KERNEL_2_BUS_PRIORITY, &s_i2c_api);
+
+#ifdef LWDT_INST_FOREACH_STATUS_OKAY_esp32_i2c
+LWDT_INST_FOREACH_STATUS_OKAY(esp32_i2c, DRVFX_I2C_IDF_DEFINE)
+#endif

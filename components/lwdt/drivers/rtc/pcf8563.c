@@ -16,6 +16,8 @@
 #include "drvfx/drvfx.h"
 #include "drvfx/drivers/i2c.h"
 #include "drvfx/drivers/rtc.h"
+#include "lwdt/lwdt.h"
+#include "lwdt_generated.h"
 
 #define TAG "pcf8563"
 
@@ -268,18 +270,6 @@ static int pcf8563_encode_datetime(const struct tm* dt, uint8_t* buf, size_t len
     return 0;
 }
 
-static const struct pcf8563_config _pcf8563_config = {
-    .bus_name = CONFIG_DRIVER_RTC_PCF8563_BUS_NAME,
-    .addr = CONFIG_DRIVER_RTC_PCF8563_ADDR,
-    .timeout = pdMS_TO_TICKS(CONFIG_DRIVER_RTC_PCF8563_TIMEOUT_MS),
-};
-
-static struct pcf8563_data _pcf8563_data = { 0 };
-
-static const char* const _pcf8563_required_devices[] = {
-    CONFIG_DRIVER_RTC_PCF8563_BUS_NAME,
-};
-
 static const struct rtc_driver_api _pcf8563_api = {
     .now = &pcf8563_now,
     .set_datetime = &pcf8563_set_datetime,
@@ -287,5 +277,21 @@ static const struct rtc_driver_api _pcf8563_api = {
     .halt = &pcf8563_halt,
 };
 
-DRVFX_DEVICE_DEFINE_WITH_DEPS("rtc_dev", pcf8563_init, &_pcf8563_data, &_pcf8563_config,
-                              DRVFX_INIT_POST_KERNEL_DEVICE_PRIORITY, &_pcf8563_api, _pcf8563_required_devices, 1);
+#define PCF8563_DEFINE(inst, node_id)                                                                                  \
+    static const struct pcf8563_config _pcf8563_##inst##_config = {                                                    \
+        .bus_name = LWDT_LABEL(LWDT_PROP_NODE(node_id, bus)),                                                          \
+        .addr = LWDT_PROP_BY_IDX(node_id, reg, 0),                                                                     \
+        .timeout = pdMS_TO_TICKS(LWDT_PROP(node_id, timeout_ms)),                                                      \
+    };                                                                                                                 \
+    static struct pcf8563_data _pcf8563_##inst##_data = { 0 };                                                         \
+    static const char* const _pcf8563_##inst##_required_devices[] = {                                                  \
+        LWDT_LABEL(LWDT_PROP_NODE(node_id, bus)),                                                                      \
+    };                                                                                                                 \
+    DRVFX_DEVICE_DT_INST_DEFINE_WITH_DEPS(inst, nxp_pcf8563, LWDT_LABEL(node_id), pcf8563_init,                       \
+                                          &_pcf8563_##inst##_data, &_pcf8563_##inst##_config, POST_KERNEL,             \
+                                          DRVFX_INIT_POST_KERNEL_DEVICE_PRIORITY, &_pcf8563_api,                       \
+                                          _pcf8563_##inst##_required_devices, 1);
+
+#ifdef LWDT_INST_FOREACH_STATUS_OKAY_nxp_pcf8563
+LWDT_INST_FOREACH_STATUS_OKAY(nxp_pcf8563, PCF8563_DEFINE)
+#endif

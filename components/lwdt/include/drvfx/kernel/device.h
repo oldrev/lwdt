@@ -45,6 +45,27 @@ struct drvfx_device {
           };                                                                                                           \
     DRVFX_INIT_ENTRY_DEFINE(DRVFX_DEVICE_NAME_GET(dev_id_), init_fn_, &DRVFX_DEVICE_NAME_GET(dev_id_), level_, prio_)
 
+#define DRVFX_DEVICE_DT_DEFINE(node_id, name, init_fn, data, config, level, prio, api)                                \
+    DRVFX_DEVICE_DT_DEFINE_IMPL(node_id, name, init_fn, data, config, level, prio, api)
+
+#define DRVFX_DEVICE_DT_DEFINE_IMPL(node_id, name, init_fn, data, config, level, prio, api)                           \
+    DRVFX_DEVICE_BASE_DEFINE(node_id, name, init_fn, data, config, level, prio, api, NULL, 0)
+
+#define DRVFX_DEVICE_DT_DEFINE_WITH_DEPS(node_id, name, init_fn, data, config, level, prio, api, deps, dep_count)     \
+    DRVFX_DEVICE_DT_DEFINE_WITH_DEPS_IMPL(node_id, name, init_fn, data, config, level, prio, api, deps, dep_count)
+
+#define DRVFX_DEVICE_DT_DEFINE_WITH_DEPS_IMPL(node_id, name, init_fn, data, config, level, prio, api, deps,           \
+                                              dep_count)                                                              \
+    DRVFX_DEVICE_BASE_DEFINE(node_id, name, init_fn, data, config, level, prio, api, deps, dep_count)
+
+#define DRVFX_DEVICE_DT_INST_DEFINE(inst, compat, name, init_fn, data, config, level, prio, api)                      \
+    DRVFX_DEVICE_DT_DEFINE(DT_INST_NODE(inst, compat), name, init_fn, data, config, level, prio, api)
+
+#define DRVFX_DEVICE_DT_INST_DEFINE_WITH_DEPS(inst, compat, name, init_fn, data, config, level, prio, api, deps,      \
+                                              dep_count)                                                              \
+    DRVFX_DEVICE_DT_DEFINE_WITH_DEPS(DT_INST_NODE(inst, compat), name, init_fn, data, config, level, prio, api, deps, \
+                                     dep_count)
+
 #define DRVFX_NAMED_DEVICE_DEFINE_LEVEL(dev_id, name, init_fn, data, config, level, prio, api)                         \
     DRVFX_DEVICE_BASE_DEFINE(dev_id, name, init_fn, data, config, level, prio, api, NULL, 0)
 

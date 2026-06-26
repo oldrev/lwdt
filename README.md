@@ -5,6 +5,8 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![Language](https://img.shields.io/badge/language-C%20%7C%20Python%20%7C%20CMake-555555)](.)
 
+English | [简中](README.zh-cn.md)
+
 LWDT is inspired by Zephyr RTOS, especially its decoupled driver model,
 device-tree based hardware description, board IDs, and priority-sorted device
 initialization. The reason it does not simply use Zephyr is pragmatic: many ESP32
@@ -22,7 +24,7 @@ priority-sorted initialization entries and static device objects fully inside na
 ESP-IDF CMake. The result is board-selectable, reusable hardware abstraction with
 zero runtime parsing overhead and without giving up ESP-IDF.
 
-If this project saved you time, native binding headaches, or lines of code, consider buying me a coffee. Your support helps keep this project maintained, thank you!
+If this project saved you time, please consider buying me a coffee. Your support helps keep this project maintained, thank you!
 
 <p align="center">
   <a href="https://ko-fi.com/oldrev">
@@ -268,14 +270,130 @@ LWDT currently includes the following `drvfx` drivers:
 
 | Driver | Implementation | Device name / API | Init level | Notes |
 | --- | --- | --- | --- | --- |
-| I2C master bus | ESP-IDF I2C master driver | `drvfx_i2c_*` API, default device `CONFIG_DRVFX_I2C0_NAME` | `PRE_KERNEL_2 / 50` | Supports attach/detach, probe, transmit, receive, and transmit-receive. |
-| SPI master bus | ESP-IDF SPI master driver | `drvfx_spi_*` API, default device `CONFIG_DRVFX_SPI0_NAME` | `PRE_KERNEL_2 / 50` | Supports acquire/release and transceive. |
-| RTC | ESP-IDF software RTC | `rtc_*` API, device `idf` | `POST_KERNEL / 50` | Uses ESP-IDF system time as an RTC-like device. |
-| RTC | DS1302 | `rtc_*` API, device `rtc_dev` | `POST_KERNEL / 50` | GPIO bit-banged DS1302 support. |
-| RTC | PCF8563 | `rtc_*` API, device `rtc_dev` | `POST_KERNEL / 50` | I2C RTC; declares a dependency on the configured I2C bus. |
+| I2C master bus | ESP-IDF I2C master driver | `drvfx_i2c_*` API, DT labels such as `i2c0` | `PRE_KERNEL_2 / 50` | DT-driven multi-instance via `compatible: "esp32,i2c"`. Supports attach/detach, probe, transmit, receive, and transmit-receive. |
+| SPI master bus | ESP-IDF SPI master driver | `drvfx_spi_*` API, DT labels such as `spi2` | `PRE_KERNEL_2 / 50` | DT-driven multi-instance via `compatible: "esp32,spi"`. Supports acquire/release and transceive. |
+| RTC | ESP-IDF software RTC | `rtc_*` API, device `idf` | `POST_KERNEL / 50` | Legacy single-instance driver using ESP-IDF system time as an RTC-like device. |
+| RTC | DS1302 | `rtc_*` API, device `rtc_dev` | `POST_KERNEL / 50` | Legacy single-instance GPIO bit-banged DS1302 support. |
+| RTC | PCF8563 | `rtc_*` API, DT labels such as `rtc0` | `POST_KERNEL / 50` | DT-driven multi-instance via `compatible: "nxp,pcf8563"`; depends on the referenced I2C bus. |
 
 The public driver headers live under `components/lwdt/include/drvfx/drivers/`.
 Driver source lives under `components/lwdt/drivers/`.
+
+## Developing A Driver
+
+A modern LWDT driver should be instantiated from device-tree nodes, not from
+hardcoded `CONFIG_*0_*` wiring. The model is intentionally close to Zephyr:
+each node with a matching `compatible` string gets an instance number, and the
+driver expands `LWDT_INST_FOREACH_STATUS_OKAY(<compat>, <macro>)` at file scope.
+Only nodes with `status: "okay"` are instantiated; missing `status` is treated as
+okay.
+
+A typical driver has four pieces:
+
+1. A config struct for immutable hardware configuration read from `board.lwdt`.
+2. A data struct for runtime state, one instance per enabled node.
+3. An init function with signature `int init(const struct drvfx_device* dev)`.
+4. A per-instance define macro that calls `DRVFX_DEVICE_DT_INST_DEFINE()` or `DRVFX_DEVICE_DT_INST_DEFINE_WITH_DEPS()`.
+
+Example board data:
+
+```jsonnet
+soc+: {
+  i2c0+: {
+    status: "okay",
+    sda_gpio: 4,
+    scl_gpio: 5,
+    clock_frequency: 400000,
+  },
+
+  rtc0: {
+    label: "rtc0",
+    compatible: "nxp,pcf8563",
+    status: "okay",
+    bus: "i2c0",
+    reg: [81],
+    timeout_ms: 1000,
+  },
+},
+```
+
+Example bus driver pattern:
+
+```c
+#include "drvfx/drvfx.h"
+#include "lwdt/lwdt.h"
+#include "lwdt_generated.h"
+
+struct my_i2c_config {
+    int port;
+    int sda_gpio;
+    int scl_gpio;
+};
+
+struct my_i2c_data {
+    void* handle;
+};
+
+static int my_i2c_init(const struct drvfx_device* dev)
+{
+    const struct my_i2c_config* config = dev->config;
+    struct my_i2c_data* data = dev->data;
+
+    /* Configure the ESP-IDF peripheral from config. */
+    return 0;
+}
+
+#define MY_I2C_DEFINE(inst, node_id)                                                                                   \
+    static const struct my_i2c_config my_i2c_##inst##_config = {                                                       \
+        .port = LWDT_PROP(node_id, port),                                                                              \
+        .sda_gpio = LWDT_PROP(node_id, sda_gpio),                                                                      \
+        .scl_gpio = LWDT_PROP(node_id, scl_gpio),                                                                      \
+    };                                                                                                                 \
+    static struct my_i2c_data my_i2c_##inst##_data = { 0 };                                                            \
+    DRVFX_DEVICE_DT_INST_DEFINE(inst, esp32_i2c, LWDT_LABEL(node_id), my_i2c_init,                                    \
+                                &my_i2c_##inst##_data, &my_i2c_##inst##_config, PRE_KERNEL_2,                         \
+                                DRVFX_INIT_PRE_KERNEL_2_BUS_PRIORITY, &my_i2c_api);
+
+#ifdef LWDT_INST_FOREACH_STATUS_OKAY_esp32_i2c
+LWDT_INST_FOREACH_STATUS_OKAY(esp32_i2c, MY_I2C_DEFINE)
+#endif
+```
+
+Example external-device dependency pattern:
+
+```c
+#define SENSOR_DEFINE(inst, node_id)                                                                                   \
+    static const struct sensor_config sensor_##inst##_config = {                                                       \
+        .bus_name = LWDT_LABEL(LWDT_PROP_NODE(node_id, bus)),                                                          \
+        .addr = LWDT_PROP_BY_IDX(node_id, reg, 0),                                                                     \
+    };                                                                                                                 \
+    static struct sensor_data sensor_##inst##_data = { 0 };                                                            \
+    static const char* const sensor_##inst##_required_devices[] = {                                                    \
+        LWDT_LABEL(LWDT_PROP_NODE(node_id, bus)),                                                                      \
+    };                                                                                                                 \
+    DRVFX_DEVICE_DT_INST_DEFINE_WITH_DEPS(inst, vendor_sensor, LWDT_LABEL(node_id), sensor_init,                      \
+                                          &sensor_##inst##_data, &sensor_##inst##_config, POST_KERNEL,                 \
+                                          DRVFX_INIT_POST_KERNEL_DEVICE_PRIORITY, &sensor_api,                         \
+                                          sensor_##inst##_required_devices, 1);
+
+#ifdef LWDT_INST_FOREACH_STATUS_OKAY_vendor_sensor
+LWDT_INST_FOREACH_STATUS_OKAY(vendor_sensor, SENSOR_DEFINE)
+#endif
+```
+
+Use `LWDT_LABEL(node_id)` for the runtime device name, `LWDT_PROP()` for scalar
+properties, `LWDT_PROP_BY_IDX()` for array entries such as `reg`, and
+`LWDT_PROP_NODE()` for phandle-style references such as `bus: "i2c0"`.
+
+Use `PRE_KERNEL_2 / 50` for bus controllers such as I2C/SPI/UART and
+`POST_KERNEL / 50` for normal external devices. Priority only orders entries inside
+the same level; real hardware dependencies should still be expressed with
+`*_WITH_DEPS` macros.
+
+If an application component defines `drvfx_app_main()` or registers init entries
+with `DRVFX_SYS_INIT()` / `DRVFX_SUBSYS_INIT()`, link that component with
+`WHOLE_ARCHIVE TRUE`. Otherwise normal static-library extraction may discard object
+files that are only referenced through linker sections.
 
 ## Driver Initialization Priorities
 

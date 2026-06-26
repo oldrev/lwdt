@@ -230,6 +230,24 @@ class Lwdt:
         json_text = json.dumps(d, sort_keys=True, separators=(',', ':'))
         return json.dumps(json_text)
 
+
+    def _node_data_by_id(self, node_id: str):
+        for info in self.registry.values():
+            if info["node_id"] == node_id:
+                return info["data"]
+        return None
+
+    def _inst_node_id(self, inst_macro: str):
+        for node_id, macro in self.inst_for_node.items():
+            if macro == inst_macro:
+                return node_id
+        return None
+
+    @staticmethod
+    def _status_okay(node: dict) -> bool:
+        status = node.get("status", "okay")
+        return not isinstance(status, str) or status in ("okay", "ok", "enabled", "true")
+
     def generate_macros(self, strict=False):
         """Second pass: generate C macro definitions from the device tree."""
         lines = []
@@ -386,7 +404,7 @@ class Lwdt:
                     lines.append(f"#define {inst_macro} {node_id}")
                     self.compat_counters[compat_norm] = inst + 1
                     self.inst_for_node[node_id] = inst_macro
-
+                    self.compat_instances.setdefault(compat_norm, []).append(inst_macro)
             status = obj.get('status', None)
             if isinstance(status, str):
                 lines.append(f"#define {node_id}_STATUS \"{status}\"")
@@ -419,12 +437,26 @@ class Lwdt:
 
         traverse(self.config)
 
-        # Generate DT_INST_FOREACH_<compat> macros for each compatible.
-        # Each macro calls the provided macro with (inst, node_id).
+        # Generate file-scope friendly instance iteration macros.
+        # The caller macro receives (inst, node_id). Status filtering follows
+        # Zephyr's default: a missing status property means "okay".
         for compat_norm, insts in self.compat_instances.items():
-            lines.append(f"\n/* DT_INST_FOREACH for compat: {compat_norm} */")
-            calls = " ".join(f"macro({i}, {inst});" for i, inst in enumerate(insts))
-            lines.append(f"#define DT_INST_FOREACH_{compat_norm}(macro) do {{ {calls} }} while (0)")
+            lines.append(f"\n/* Instance iteration for compat: {compat_norm} */")
+            calls = " ".join(f"macro({i}, {inst})" for i, inst in enumerate(insts))
+            lines.append(f"#define LWDT_INST_FOREACH_{compat_norm}(macro) {calls}")
+
+            okay_calls = []
+            for i, inst in enumerate(insts):
+                node_id = self._inst_node_id(inst)
+                node = self._node_data_by_id(node_id) if node_id else None
+                if node is not None and self._status_okay(node):
+                    okay_calls.append(f"macro({i}, {inst})")
+            lines.append(f"#define LWDT_INST_FOREACH_STATUS_OKAY_{compat_norm}(macro) {' '.join(okay_calls)}")
+
+            # Backward-compatible generated names. Prefer the public wrappers in
+            # lwdt/lwdt.h for new code.
+            lines.append(f"#define DT_INST_FOREACH_{compat_norm}(macro) LWDT_INST_FOREACH_{compat_norm}(macro)")
+            lines.append(f"#define DT_INST_FOREACH_STATUS_OKAY_{compat_norm}(macro) LWDT_INST_FOREACH_STATUS_OKAY_{compat_norm}(macro)")
 
         return lines
 

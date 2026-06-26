@@ -34,19 +34,4 @@ menu "RTC (Real-Time Clock)"
         int "DS1302 RST GPIO number"
         depends on DRIVER_RTC_DS1302
 
-    config DRIVER_RTC_PCF8563_ADDR
-        hex "The I2C address of PCF8563"
-        default 0x51
-        depends on DRIVER_RTC_PCF8563
-
-    config DRIVER_RTC_PCF8563_BUS_NAME
-        string "PCF8563 bus device name"
-        default "i2c0"
-        depends on DRIVER_RTC_PCF8563
-
-    config DRIVER_RTC_PCF8563_TIMEOUT_MS
-        int "PCF8563 transaction timeout (ms)"
-        default 1000
-        depends on DRIVER_RTC_PCF8563
-
 endmenu

@@ -1,5 +1,28 @@
 {
   model: "Borneo-Industrial-V1",
   compatible: "bst,borneo-lyfi",
-  soc: {},
+
+  soc: {
+    i2c0: {
+      label: "i2c0",
+      compatible: "esp32,i2c",
+      status: "disabled",
+      port: 0,
+      sda_gpio: -1,
+      scl_gpio: -1,
+      clock_frequency: 100000,
+      pullup: true,
+    },
+
+    spi2: {
+      label: "spi2",
+      compatible: "esp32,spi",
+      status: "disabled",
+      host: 2,
+      mosi_gpio: -1,
+      miso_gpio: -1,
+      sclk_gpio: -1,
+      max_transfer_size: 64,
+    },
+  },
 }

@@ -5,6 +5,8 @@
 
 #include "drvfx/drivers/spi.h"
 #include "drvfx/drvfx.h"
+#include "lwdt/lwdt.h"
+#include "lwdt_generated.h"
 
 #define TAG "drvfx.spi"
 
@@ -121,22 +123,25 @@ static int drvfx_spi_idf_init(const struct drvfx_device* dev)
     return 0;
 }
 
-static const struct drvfx_spi_idf_config s_spi0_config = {
-    .host = CONFIG_DRVFX_SPI0_HOST,
-    .mosi_gpio = CONFIG_DRVFX_SPI0_MOSI_GPIO,
-    .miso_gpio = CONFIG_DRVFX_SPI0_MISO_GPIO,
-    .sclk_gpio = CONFIG_DRVFX_SPI0_SCLK_GPIO,
-    .max_transfer_sz = CONFIG_DRVFX_SPI0_MAX_TRANSFER_SZ,
-};
-
-static struct drvfx_spi_idf_data s_spi0_data = { 0 };
-
 static const struct drvfx_spi_driver_api s_spi_api = {
     .acquire = drvfx_spi_idf_acquire_impl,
     .release = drvfx_spi_idf_release_impl,
     .transceive = drvfx_spi_idf_transceive_impl,
 };
 
-DRVFX_NAMED_DEVICE_DEFINE_LEVEL(spi0, CONFIG_DRVFX_SPI0_NAME, drvfx_spi_idf_init, &s_spi0_data,
-                                &s_spi0_config, PRE_KERNEL_2, DRVFX_INIT_PRE_KERNEL_2_BUS_PRIORITY,
-                                &s_spi_api);
+#define DRVFX_SPI_IDF_DEFINE(inst, node_id)                                                                            \
+    static const struct drvfx_spi_idf_config s_spi_##inst##_config = {                                                 \
+        .host = (spi_host_device_t)LWDT_PROP(node_id, host),                                                           \
+        .mosi_gpio = LWDT_PROP(node_id, mosi_gpio),                                                                    \
+        .miso_gpio = LWDT_PROP(node_id, miso_gpio),                                                                    \
+        .sclk_gpio = LWDT_PROP(node_id, sclk_gpio),                                                                    \
+        .max_transfer_sz = LWDT_PROP(node_id, max_transfer_size),                                                      \
+    };                                                                                                                 \
+    static struct drvfx_spi_idf_data s_spi_##inst##_data = { 0 };                                                      \
+    DRVFX_DEVICE_DT_INST_DEFINE(inst, esp32_spi, LWDT_LABEL(node_id), drvfx_spi_idf_init,                       \
+                                &s_spi_##inst##_data, &s_spi_##inst##_config, PRE_KERNEL_2,                           \
+                                DRVFX_INIT_PRE_KERNEL_2_BUS_PRIORITY, &s_spi_api);
+
+#ifdef LWDT_INST_FOREACH_STATUS_OKAY_esp32_spi
+LWDT_INST_FOREACH_STATUS_OKAY(esp32_spi, DRVFX_SPI_IDF_DEFINE)
+#endif

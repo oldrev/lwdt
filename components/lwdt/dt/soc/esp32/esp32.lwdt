@@ -4,16 +4,27 @@
 
   soc: {
     i2c0: {
+      label: "i2c0",
       compatible: "esp32,i2c",
       reg: [1061158912, 4096, 1061163008, 256],
       interrupts: [12, 1],
-      status: "okay",
+      status: "disabled",
+      port: 0,
+      sda_gpio: -1,
+      scl_gpio: -1,
+      clock_frequency: 100000,
+      pullup: true,
+    },
 
-      bme280: {
-        compatible: "bosch,bme280",
-        reg: [118],
-        oversampling: 4,
-      },
+    spi2: {
+      label: "spi2",
+      compatible: "esp32,spi",
+      status: "disabled",
+      host: 2,
+      mosi_gpio: -1,
+      miso_gpio: -1,
+      sclk_gpio: -1,
+      max_transfer_size: 64,
     },
 
     gpio0: {
