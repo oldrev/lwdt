@@ -1,4 +1,4 @@
-# LWDT: A lightweight device-tree and driver framework solution for ESP-IDF board variants
+# LWDT: A lightweight device-tree and driver framework solution for ESP-IDF
 
 [![ESP-IDF Build](https://github.com/oldrev/lwdt/actions/workflows/esp-idf-build.yml/badge.svg)](https://github.com/oldrev/lwdt/actions/workflows/esp-idf-build.yml)
 [![ESP-IDF](https://img.shields.io/badge/ESP--IDF-6.0.1-E7352C)](https://github.com/espressif/esp-idf)
