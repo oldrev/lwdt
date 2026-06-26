@@ -1,8 +1,34 @@
-# LWDT
+# LWDT: A lightweight device-tree and driver framework solution for ESP-IDF board variants
 
-LWDT is a lightweight, Jsonnet-based device-tree and driver framework for ESP-IDF.
-It lets an application select a board with one board ID, similar to Zephyr's
-`west -b`, while keeping hardware wiring out of `sdkconfig`.
+[![ESP-IDF Build](https://github.com/oldrev/lwdt/actions/workflows/esp-idf-build.yml/badge.svg)](https://github.com/oldrev/lwdt/actions/workflows/esp-idf-build.yml)
+[![ESP-IDF](https://img.shields.io/badge/ESP--IDF-6.0.1-E7352C)](https://github.com/espressif/esp-idf)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+[![Language](https://img.shields.io/badge/language-C%20%7C%20Python%20%7C%20CMake-555555)](.)
+
+LWDT is inspired by Zephyr RTOS, especially its decoupled driver model,
+device-tree based hardware description, board IDs, and priority-sorted device
+initialization. The reason it does not simply use Zephyr is pragmatic: many ESP32
+products still need Espressif's battle-tested native ESP-IDF ecosystem, including
+BLE provisioning, Wi-Fi, mesh networking, vendor examples, tooling, and silicon-day-one
+support.
+
+The pain LWDT addresses is the way traditional ESP-IDF projects tend to drift into
+`#ifdef` branches, hardcoded GPIO tables, and duplicated driver glue when supporting
+multiple hardware variants or reusing custom drivers across boards.
+
+The solution is a lightweight Python/Jsonnet pipeline that turns `board.lwdt` into
+Zephyr-like generated C access macros, plus a small `drvfx` runtime that provides
+priority-sorted initialization entries and static device objects fully inside native
+ESP-IDF CMake. The result is board-selectable, reusable hardware abstraction with
+zero runtime parsing overhead and without giving up ESP-IDF.
+
+If this project saved you time, native binding headaches, or lines of code, consider buying me a coffee. Your support helps keep this project maintained, thank you!
+
+<p align="center">
+  <a href="https://ko-fi.com/oldrev">
+    <img src="https://ko-fi.com/img/githubbutton_sm.svg" alt="Buy me a coffee" width="200">
+  </a>
+</p>
 
 A board ID is always written as `vendor/model`. Each board directory uses fixed
 file names:
@@ -94,6 +120,7 @@ idf.py flash monitor
 The component currently includes these built-in board definitions:
 
 - `espressif/esp32-devkitc-1`
+- `espressif/esp32-c3-devkitm-1`
 - `nologo/esp32-c3-supermini`
 - `espressif/esp32-s3-devkitc-1`
 
@@ -286,3 +313,10 @@ level only; real device dependencies should still be expressed with the
 - If an existing `sdkconfig` was generated for a different ESP-IDF target, remove
   it and reconfigure. ESP-IDF validates `sdkconfig` target consistency before LWDT
   can change target cleanly.
+
+## License & Copyright
+
+LWDT is licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) for details.
+
+Copyright (c) 2026 Wei Li. All rights reserved.
+

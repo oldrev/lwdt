@@ -36,6 +36,7 @@ built-in BSP.
 Built-in board IDs currently available:
 
 - `espressif/esp32-devkitc-1`
+- `espressif/esp32-c3-devkitm-1`
 - `nologo/esp32-c3-supermini`
 - `espressif/esp32-s3-devkitc-1`
 

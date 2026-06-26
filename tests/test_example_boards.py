@@ -10,6 +10,7 @@ PROJECT_BOARD_ROOT = REPO_ROOT / "example" / "boards"
 
 EXPECTED_BOARDS = {
     "espressif/esp32-devkitc-1": "esp32",
+    "espressif/esp32-c3-devkitm-1": "esp32c3",
     "nologo/esp32-c3-supermini": "esp32c3",
     "espressif/esp32-s3-devkitc-1": "esp32s3",
 }

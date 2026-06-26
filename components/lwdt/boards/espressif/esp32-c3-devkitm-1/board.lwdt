@@ -1,0 +1,11 @@
+local esp32c3 = import "soc/esp32/esp32c3.lwdt";
+
+esp32c3 + {
+  board: {
+    label: "board",
+    led_gpio: 8,
+    led_active_low: 0,
+    led_type: "addressable_rgb",
+    led_name: "ESP32-C3-DevKitM-1 RGB LED",
+  },
+}
