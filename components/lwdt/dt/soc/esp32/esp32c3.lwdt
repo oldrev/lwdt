@@ -1,0 +1,5 @@
+{
+  model: "Borneo-Industrial-V1",
+  compatible: "bst,borneo-lyfi",
+  soc: {},
+}

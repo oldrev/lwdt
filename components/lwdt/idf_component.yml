@@ -1,0 +1,4 @@
+dependencies:
+  idf: '>=5.1'
+description: Lightweight device tree and driver-framework component for ESP-IDF
+version: 0.1.0

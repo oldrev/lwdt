@@ -1,8 +1,0 @@
-local esp32 = import "soc/esp32/esp32.lwdt";
-
-esp32 + {
-  status_led: {
-    label: "status_led",
-    enable_gpios: { node: "gpio0", pin: 2, flags: 0 },
-  },
-}

@@ -6,7 +6,7 @@ from pathlib import Path
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-SCRIPT = REPO_ROOT / "lwdt2h.py"
+SCRIPT = REPO_ROOT / "components/lwdt/lwdt2h.py"
 
 
 def run_lwdt(*args: str, cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
@@ -27,7 +27,7 @@ def generate_header(tmp_path: Path, source: str) -> str:
 
 
 def test_board_emits_phandle_compatibility_aliases(tmp_path: Path) -> None:
-    header = generate_header(tmp_path, "dt/board.lwdt")
+    header = generate_header(tmp_path, "components/lwdt/dt/board.lwdt")
 
     assert "#define LWDT_NS_lighting_S_status_rgb_P_enable_gpios_PHANDLE LWDT_NS_soc_S_gpio0" in header
     assert (

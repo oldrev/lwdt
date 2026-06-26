@@ -1,0 +1,10 @@
+local esp32 = import "soc/esp32/esp32.lwdt";
+
+esp32 + {
+  board: {
+    label: "board",
+    led_gpio: 2,
+    led_active_low: 0,
+    led_name: "ESP32 DevKitC-1",
+  },
+}

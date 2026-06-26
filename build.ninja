@@ -2,7 +2,7 @@
 # Run with: ninja -f build.ninja
 
 rule gen_dt
-  command = python lwdt2h.py --basedir dt -o build/lwdt_generated.h dt/board.lwdt
+  command = python components/lwdt/lwdt2h.py --basedir components/lwdt/dt -o build/lwdt_generated.h components/lwdt/dt/board.lwdt
   description = Generating device tree header
 
 rule cc
@@ -20,7 +20,7 @@ rule mkdir
 build build/.dir: mkdir
 
 # Ensure the generated header is rebuilt when any source DT file changes.
-build build/lwdt_generated.h: gen_dt dt/board.lwdt dt/soc/esp32/esp32.lwdt | build/.dir
+build build/lwdt_generated.h: gen_dt components/lwdt/dt/board.lwdt dt/soc/esp32/esp32.lwdt | build/.dir
 
 build build/demo_dt: cc demo/demo_dt.c | build/lwdt_generated.h
 

@@ -1,51 +1,86 @@
-# Lightweight Device Tree Generator
+# LWDT for ESP-IDF
 
-This repository contains a simple **Lightweight Device Tree (LWDT)** generator written in Python, along with a simple C test harness.
+LWDT is a lightweight, Jsonnet-based device tree and driver framework for ESP-IDF.
+It lets you describe board hardware in a board-local `.lwdt` file, keep board metadata
+in a small CMake fragment, and generate the headers consumed by the application at
+configure time.
 
-## Components
+The repository is organized around board IDs in `vendor/model` form. The example
+application uses the selected board ID to:
 
-- `lwdt2h.py`: Generates a C header (`lwdt_generated.h`) from a lightweight Jsonnet-based device tree (`.lwdt`).
-- `dt/board.lwdt`: Example root device tree.
-- `dt/soc/esp32/esp32.lwdt`: Example included device tree fragment.
-- `include/lwdt.h`: Helper macros for consuming generated DT macros.
-- `demo/demo_dt.c`: A small C program that reads values from the generated device tree header.
-- `build.ninja`: A Ninja build file to generate headers, compile the test program, and run it by default.
+- resolve `example/boards/<vendor>/<model>/board.lwdt`
+- load `board.cmake`
+- set `IDF_TARGET`
+- generate `lwdt_generated.h`
+
+## Why This Exists
+
+ESP-IDF projects often spread board-specific information across Kconfig, CMake, and
+application code. LWDT moves the hardware description into a dedicated board
+directory so the board definition stays explicit and reusable.
+
+This gives you:
+
+- a single board ID per board
+- fixed file names for each board
+- board metadata separated from application code
+- hardware description that is not mixed into `sdkconfig`
+
+## Repository Layout
+
+- `components/lwdt/`: reusable ESP-IDF component containing the Jsonnet generator,
+  the `drvfx` framework, and the code that turns a board file into C headers
+- `example/`: blink example showing how to select a board and consume generated
+  headers
+- `example/boards/<vendor>/<model>/`: board definitions keyed by board ID
+
+Each board directory contains:
+
+- `board.lwdt`: the board device-tree fragment
+- `board.cmake`: board metadata used during configure, including `LWDT_BOARD_IDF_TARGET`
 
 ## Quick Start
 
-### 1) Generate device tree header, build the test binary, and run it
+1. Set up the ESP-IDF environment as usual.
+2. Pick a board ID from `example/boards/`.
+3. Configure and build the example:
 
-```sh
-ninja -f build.ninja
+```powershell
+cd example
+idf.py build -DLWDT_BOARD_ID=nologo/esp32-c3-supermini
 ```
 
-If you want to run the binary manually:
+You can also set the board ID through the environment:
 
-- Linux / macOS: `./build/demo_dt`
-- Windows: `./build/demo_dt.exe`
-
-### 2) Run the Python regression tests
-
-```sh
-python -m pytest
+```powershell
+$env:LWDT_BOARD_ID = "nologo/esp32-c3-supermini"
+idf.py build
 ```
 
-The test suite covers header generation, node-reference resolution, strict-mode failures, and compatibility aliases for phandle macros.
+4. Flash and monitor with the usual ESP-IDF commands:
 
-## Adding / Editing Device Trees
+```powershell
+idf.py flash monitor
+```
 
-- Update `dt/board.lwdt` (or create additional `.lwdt` files under `dt/`).
-- Run `python lwdt2h.py -o build/lwdt_generated.h dt/board.lwdt` to regenerate the header.
+## Example Boards
 
-### Import Semantics
+The example tree currently includes:
 
-Device trees are Jsonnet expressions. Use `import "path/file.lwdt"` and object addition (`+`) or nested field addition (`field+:`) to compose fragments.
+- `espressif/esp32-devkitc-1`
+- `nologo/esp32-c3-supermini`
+- `espressif/esp32-s3-devkitc-1`
 
-- Imports are resolved relative to the file that contains the import first.
-- If the import is not found there, `--basedir` is used as an additional import root.
-- Example: `python lwdt2h.py --basedir dt -o build/lwdt_generated.h dt/board.lwdt`.
+## Adding A Board
+
+1. Create `example/boards/<vendor>/<model>/`.
+2. Add `board.lwdt` with the board's hardware description.
+3. Add `board.cmake` and set `LWDT_BOARD_IDF_TARGET` to the correct ESP-IDF target.
+4. Build with `-DLWDT_BOARD_ID=<vendor>/<model>`.
 
 ## Notes
 
-- The generator outputs flat macros such as `LWDT_NS_soc_S_i2c0_P_reg_IDX_0`.
-- It supports node/label references (phandles) and basic Zephyr-like macros (`_COMPATIBLE`, `_STATUS`, `_REG`).
+- `LWDT_BOARD_ID` must point to a board directory in `vendor/model` form.
+- `IDF_TARGET` is selected from `board.cmake`, not from `sdkconfig`.
+- ESP-IDF still generates `sdkconfig`, but it lives in the build directory and is
+  treated as build state, not as board wiring data.

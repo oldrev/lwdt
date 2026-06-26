@@ -1,0 +1,28 @@
+local esp32 = import "soc/esp32/esp32.lwdt";
+
+esp32 + {
+  lighting: {
+    status_rgb: {
+      label: "status_rgb",
+      pwms: ["led_pwm", 0, 5000, 0, "led_pwm", 1, 5000, 0],
+      enable_gpios: { node: "gpio0", pin: 15, flags: 1 },
+    },
+    modes: ["manual", "auto", "cloud-remote"],
+  },
+
+  soc+: {
+    i2c0+: {
+      pcf8563_rtc: {
+        label: "pcf8563",
+        compatible: "nxp,pcf8563",
+        reg: [81],
+      },
+      pcf8563_rtc_2: {
+        label: "pcf8563_2",
+        compatible: "nxp,pcf8563",
+        reg: [82],
+      },
+      label: "i2c0",
+    },
+  },
+}

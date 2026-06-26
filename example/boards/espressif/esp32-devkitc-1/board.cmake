@@ -1,0 +1,1 @@
+set(LWDT_BOARD_IDF_TARGET "esp32")

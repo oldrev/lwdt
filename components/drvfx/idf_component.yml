@@ -1,8 +1,0 @@
-dependencies:
-  cmake_utilities: '*'
-  idf: '>=5.1'
-description: ESP-IDF modular device driver framework
-issues: https://github.com/oldrev/bst-drvfx/issues
-repository: git://github.com/oldrev/bst-drvfx.git
-url: https://github.com/oldrev/bst-drvfx/tree/master/components/bst-drvfx
-version: 0.1.0

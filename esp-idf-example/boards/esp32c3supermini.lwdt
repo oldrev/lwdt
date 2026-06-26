@@ -1,9 +1,0 @@
-local esp32c3 = import "soc/esp32/esp32c3.lwdt";
-
-esp32c3 + {
-  compatible: "nologo,esp32c3supermini",
-  status_led: {
-    label: "status_led",
-    enable_gpios: { node: "gpio0", pin: 8, flags: 1 },
-  },
-}

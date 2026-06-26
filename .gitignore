@@ -11,6 +11,7 @@ build/lwdt_generated.h
 
 # Python cache
 __pycache__/
+.pytest_cache/
 *.pyc
 
 # Editor/IDE
