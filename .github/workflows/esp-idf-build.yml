@@ -26,6 +26,7 @@ jobs:
 
       - name: Run pytest
         run: python -m pytest -p no:cacheprovider tests
+
   build-example:
     name: Build example (${{ matrix.board }})
     runs-on: ubuntu-latest
@@ -46,8 +47,12 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install generator dependencies
-        run: python -m pip install --upgrade jsonnet
+        run: |
+          . "$IDF_PATH/export.sh"
+          python -m pip install --upgrade jsonnet
 
       - name: Build example
         working-directory: example
-        run: idf.py build -DLWDT_BOARD_ID=${{ matrix.board }}
+        run: |
+          . "$IDF_PATH/export.sh"
+          idf.py build -DLWDT_BOARD_ID=${{ matrix.board }}
