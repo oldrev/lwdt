@@ -243,6 +243,31 @@ normalized the same way generated C identifiers are normalized, for example
 #define DEV0_REG  LWDT_INST_PROP(0, vendor_my_device, reg)
 ```
 
+To get a runtime `drvfx` device, use the DT label as the device name and pass it
+to `k_device_get_binding()`:
+
+```c
+#include "drvfx/drvfx.h"
+#include "lwdt/lwdt.h"
+#include "lwdt_generated.h"
+
+#define I2C0_NODE LWDT_NODELABEL(i2c0)
+
+const struct drvfx_device* i2c0 = k_device_get_binding(LWDT_LABEL(I2C0_NODE));
+if ((i2c0 == NULL) || !k_device_is_ready(i2c0)) {
+    return -ENODEV;
+}
+```
+
+For a phandle-style bus reference, resolve the referenced node first:
+
+```c
+#define SENSOR_NODE LWDT_NODELABEL(rtc0)
+#define BUS_NODE    LWDT_PROP_NODE(SENSOR_NODE, bus)
+
+const struct drvfx_device* bus = k_device_get_binding(LWDT_LABEL(BUS_NODE));
+```
+
 The blink example uses the same generated data from C:
 
 ```c

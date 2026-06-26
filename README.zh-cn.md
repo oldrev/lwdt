@@ -218,6 +218,30 @@ compatible 实例使用 instance helper。compatible 字符串会按 C 标识符
 #define DEV0_REG  LWDT_INST_PROP(0, vendor_my_device, reg)
 ```
 
+如果要拿到运行时的 `drvfx` 设备，用 DT label 作为设备名传给 `k_device_get_binding()`：
+
+```c
+#include "drvfx/drvfx.h"
+#include "lwdt/lwdt.h"
+#include "lwdt_generated.h"
+
+#define I2C0_NODE LWDT_NODELABEL(i2c0)
+
+const struct drvfx_device* i2c0 = k_device_get_binding(LWDT_LABEL(I2C0_NODE));
+if ((i2c0 == NULL) || !k_device_is_ready(i2c0)) {
+    return -ENODEV;
+}
+```
+
+如果设备通过 phandle 风格属性引用 bus，先解析被引用的节点：
+
+```c
+#define SENSOR_NODE LWDT_NODELABEL(rtc0)
+#define BUS_NODE    LWDT_PROP_NODE(SENSOR_NODE, bus)
+
+const struct drvfx_device* bus = k_device_get_binding(LWDT_LABEL(BUS_NODE));
+```
+
 blink 示例也是用同样的方式访问生成数据：
 
 ```c
