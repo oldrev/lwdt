@@ -196,5 +196,6 @@ static const struct drvfx_i2c_driver_api s_i2c_api = {
     .receive = drvfx_i2c_idf_receive_impl,
 };
 
-DRVFX_NAMED_DEVICE_DEFINE(i2c0, CONFIG_DRVFX_I2C0_NAME, drvfx_i2c_idf_init, &s_i2c0_data, &s_i2c0_config,
-                          DRVFX_INIT_POST_KERNEL_HIGH_PRIORITY, &s_i2c_api);
+DRVFX_NAMED_DEVICE_DEFINE_LEVEL(i2c0, CONFIG_DRVFX_I2C0_NAME, drvfx_i2c_idf_init, &s_i2c0_data,
+                                &s_i2c0_config, PRE_KERNEL_2, DRVFX_INIT_PRE_KERNEL_2_BUS_PRIORITY,
+                                &s_i2c_api);

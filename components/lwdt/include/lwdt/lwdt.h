@@ -2,6 +2,8 @@
 
 /* Node helpers */
 #define LWDT_NODE(node) node
+#define LWDT_NODE_EXISTS(node) LWDT_NODE_EXISTS_IMPL(node)
+#define LWDT_NODE_EXISTS_IMPL(node) node##_EXISTS
 
 /* Zephyr-style helpers: build node identifiers from path segments. */
 #define LWDT_NODE2(a, b) LWDT_NS_##a##_S_##b
@@ -27,6 +29,8 @@
 /* Property helpers. */
 #define LWDT_PROP(node, prop) LWDT_PROP_IMPL(node, prop)
 #define LWDT_PROP_IMPL(node, prop) node##_P_##prop
+#define LWDT_PROP_EXISTS(node, prop) LWDT_PROP_EXISTS_IMPL(node, prop)
+#define LWDT_PROP_EXISTS_IMPL(node, prop) node##_P_##prop##_EXISTS
 #define LWDT_PROP_LEN(node, prop) node##_P_##prop##_LEN
 
 /* Path helpers. */

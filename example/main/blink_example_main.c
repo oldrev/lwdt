@@ -1,52 +1,82 @@
 #include <stdbool.h>
+
+#include "driver/gpio.h"
+#include "esp_err.h"
+#include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include "driver/gpio.h"
-#include "esp_log.h"
+
 #include <lwdt/lwdt.h>
 #include "lwdt_generated.h"
 
-static const char *TAG = "example";
+static const char* TAG = "lwdt.example";
 
-#ifndef LWDT_NS_board_P_led_gpio
-#error "No board LED GPIO defined in device tree"
+#define BOARD_NODE LWDT_NODELABEL(board)
+
+#if !LWDT_NODE_EXISTS(BOARD_NODE)
+#error "Board node with label 'board' is missing from lwdt_generated.h"
 #endif
 
-#define BLINK_GPIO LWDT_NS_board_P_led_gpio
+#if !LWDT_PROP_EXISTS(BOARD_NODE, led_gpio)
+#error "Board node must define led_gpio"
+#endif
 
-#if defined(LWDT_NS_board_P_led_active_low)
-#define LED_ACTIVE_LOW LWDT_NS_board_P_led_active_low
+#define BLINK_GPIO LWDT_PROP(BOARD_NODE, led_gpio)
+
+#if LWDT_PROP_EXISTS(BOARD_NODE, led_active_low)
+#define LED_ACTIVE_LOW LWDT_PROP(BOARD_NODE, led_active_low)
 #else
 #define LED_ACTIVE_LOW 0
 #endif
 
-#if defined(LWDT_NS_board_P_led_name)
-#define LED_BOARD_NAME LWDT_NS_board_P_led_name
+#if LWDT_PROP_EXISTS(BOARD_NODE, led_name)
+#define LED_BOARD_NAME LWDT_PROP(BOARD_NODE, led_name)
 #else
-#define LED_BOARD_NAME "unknown"
+#define LED_BOARD_NAME "unnamed board LED"
 #endif
 
 static bool s_led_on;
 
-static void blink_led(void)
+static esp_err_t configure_led(void)
 {
-    gpio_set_level(BLINK_GPIO, LED_ACTIVE_LOW ? !s_led_on : s_led_on);
+    ESP_LOGI(TAG, "board node: %s", LED_BOARD_NAME);
+    ESP_LOGI(TAG, "led gpio=%d active_low=%d", BLINK_GPIO, LED_ACTIVE_LOW);
+
+    esp_err_t err = gpio_reset_pin(BLINK_GPIO);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "gpio_reset_pin(%d) failed: %s", BLINK_GPIO, esp_err_to_name(err));
+        return err;
+    }
+
+    err = gpio_set_direction(BLINK_GPIO, GPIO_MODE_OUTPUT);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "gpio_set_direction(%d) failed: %s", BLINK_GPIO, esp_err_to_name(err));
+        return err;
+    }
+
+    return ESP_OK;
 }
 
-static void configure_led(void)
+static void set_led(bool on)
 {
-    ESP_LOGI(TAG, "Blinking board LED on %s (GPIO %d)", LED_BOARD_NAME, BLINK_GPIO);
-    gpio_reset_pin(BLINK_GPIO);
-    gpio_set_direction(BLINK_GPIO, GPIO_MODE_OUTPUT);
+    int level = LED_ACTIVE_LOW ? !on : on;
+    esp_err_t err = gpio_set_level(BLINK_GPIO, level);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "gpio_set_level(%d, %d) failed: %s", BLINK_GPIO, level, esp_err_to_name(err));
+        return;
+    }
+
+    ESP_LOGI(TAG, "LED %s gpio=%d level=%d", on ? "on" : "off", BLINK_GPIO, level);
 }
 
-void app_main(void)
+void drvfx_app_main(void)
 {
-    configure_led();
+    if (configure_led() != ESP_OK) {
+        return;
+    }
 
-    while (1) {
-        ESP_LOGI(TAG, "Turning the LED %s!", s_led_on ? "ON" : "OFF");
-        blink_led();
+    while (true) {
+        set_led(s_led_on);
         s_led_on = !s_led_on;
         vTaskDelay(pdMS_TO_TICKS(500));
     }

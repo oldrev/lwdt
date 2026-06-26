@@ -137,5 +137,6 @@ static const struct drvfx_spi_driver_api s_spi_api = {
     .transceive = drvfx_spi_idf_transceive_impl,
 };
 
-DRVFX_NAMED_DEVICE_DEFINE(spi0, CONFIG_DRVFX_SPI0_NAME, drvfx_spi_idf_init, &s_spi0_data, &s_spi0_config,
-                          DRVFX_INIT_POST_KERNEL_HIGH_PRIORITY, &s_spi_api);
+DRVFX_NAMED_DEVICE_DEFINE_LEVEL(spi0, CONFIG_DRVFX_SPI0_NAME, drvfx_spi_idf_init, &s_spi0_data,
+                                &s_spi0_config, PRE_KERNEL_2, DRVFX_INIT_PRE_KERNEL_2_BUS_PRIORITY,
+                                &s_spi_api);

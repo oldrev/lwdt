@@ -76,6 +76,8 @@ def _jsonnet_import_callback(include_base_dir: str | None = None):
 
     def callback(base: str, rel: str):
         candidates = []
+        if os.path.isabs(rel):
+            candidates.append(os.path.normpath(rel))
         if base:
             base_dir = base if os.path.isdir(base) else os.path.dirname(base)
             candidates.append(os.path.normpath(os.path.join(base_dir, rel)))
@@ -93,7 +95,17 @@ def _jsonnet_import_callback(include_base_dir: str | None = None):
     return callback
 
 
-def parse_lwdt_jsonnet(file_path: str, include_base_dir: str | None = None):
+def _jsonnet_import_expr(file_path: str) -> str:
+    """Return a Jsonnet import expression for a host path."""
+    normalized = os.path.abspath(file_path).replace(os.sep, "/")
+    return f"(import {json.dumps(normalized)})"
+
+
+def parse_lwdt_jsonnet(
+    file_path: str,
+    include_base_dir: str | None = None,
+    overlays: list[str] | None = None,
+):
     """Evaluate a Jsonnet-backed .lwdt file and return plain Python data."""
     if _jsonnet is None:
         raise RuntimeError(
@@ -101,10 +113,23 @@ def parse_lwdt_jsonnet(file_path: str, include_base_dir: str | None = None):
             "Install it with: python -m pip install jsonnet"
         )
 
-    json_text = _jsonnet.evaluate_file(
-        file_path,
-        import_callback=_jsonnet_import_callback(include_base_dir),
-    )
+    import_callback = _jsonnet_import_callback(include_base_dir)
+    overlays = overlays or []
+    if overlays:
+        snippet = " + ".join(
+            [_jsonnet_import_expr(file_path)]
+            + [_jsonnet_import_expr(overlay) for overlay in overlays]
+        )
+        json_text = _jsonnet.evaluate_snippet(
+            "lwdt-composed.jsonnet",
+            snippet,
+            import_callback=import_callback,
+        )
+    else:
+        json_text = _jsonnet.evaluate_file(
+            file_path,
+            import_callback=import_callback,
+        )
     return json.loads(json_text)
 
 
@@ -269,6 +294,9 @@ class Lwdt:
                     alias = f"{inst_macro}{name[len(node_id):]}"
                     lines.append(f"#define {alias} {name}")
 
+            lines.append(f"#define {macro_base}_EXISTS 1")
+            emit_alias(f"{macro_base}_EXISTS")
+
             if isinstance(value, list):
                 for i, item in enumerate(value):
                     emit_value(node_id, f"{macro_base}_IDX_{i}", item, raw_path, label_norm)
@@ -414,6 +442,12 @@ def main():
         default=None,
         help="Additional base directory for Jsonnet import resolution",
     )
+    parser.add_argument(
+        "--overlay",
+        action="append",
+        default=[],
+        help="Overlay file applied after the base input. Can be passed more than once.",
+    )
     parser.add_argument("--check", action="store_true", help="Only validate the device tree, do not write output")
     parser.add_argument("--strict", action="store_true", help="Treat unresolved references as errors and exit non-zero")
     parser.add_argument("-v", "--version", action="version", version=f"lwdt2h 1.0 ({COPYRIGHT})")
@@ -425,9 +459,18 @@ def main():
 
     input_file = os.path.abspath(args.input)
     base_dir = os.path.abspath(args.basedir) if args.basedir else None
+    overlays = [os.path.abspath(path) for path in args.overlay]
+    for overlay in overlays:
+        if not os.path.exists(overlay):
+            print(f"Error: Overlay file {overlay} not found.", file=sys.stderr)
+            sys.exit(1)
 
     try:
-        conf = parse_lwdt_jsonnet(input_file, include_base_dir=base_dir if args.basedir else None)
+        conf = parse_lwdt_jsonnet(
+            input_file,
+            include_base_dir=base_dir if args.basedir else None,
+            overlays=overlays,
+        )
     except (OSError, ValueError, RuntimeError) as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)

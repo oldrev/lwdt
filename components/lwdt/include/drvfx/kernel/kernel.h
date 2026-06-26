@@ -26,6 +26,9 @@ void k_safe_mode(uint32_t reason);
 uint32_t k_get_shutdown_reason();
 void k_ready();
 
+/* Application entry point called by the drvfx-owned ESP-IDF app_main(). */
+void drvfx_app_main(void);
+
 kernel_mode_t k_get_mode();
 
 #ifdef __cplusplus

@@ -127,4 +127,4 @@ static const struct rtc_driver_api _idf_api = {
     .halt = &idf_halt,
 };
 
-DRVFX_DEVICE_DEFINE("idf", idf_init, &_idf_data, &_idf_config, DRVFX_INIT_POST_KERNEL_DEFAULT_PRIORITY, &_idf_api);
+DRVFX_DEVICE_DEFINE("idf", idf_init, &_idf_data, &_idf_config, DRVFX_INIT_POST_KERNEL_DEVICE_PRIORITY, &_idf_api);

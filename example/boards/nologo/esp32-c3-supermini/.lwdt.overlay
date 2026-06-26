@@ -1,0 +1,5 @@
+{
+  board+: {
+    led_name: "ESP32-C3 SuperMini (project overlay)",
+  },
+}

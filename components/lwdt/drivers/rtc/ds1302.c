@@ -263,5 +263,5 @@ static const struct rtc_driver_api _ds1302_api = {
     .halt = &ds1302_halt,
 };
 
-DRVFX_DEVICE_DEFINE("rtc_dev", ds1302_init, &_ds1302_data, &_ds1302_config, DRVFX_INIT_POST_KERNEL_DEFAULT_PRIORITY,
+DRVFX_DEVICE_DEFINE("rtc_dev", ds1302_init, &_ds1302_data, &_ds1302_config, DRVFX_INIT_POST_KERNEL_DEVICE_PRIORITY,
                     &_ds1302_api);

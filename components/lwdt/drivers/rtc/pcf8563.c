@@ -288,4 +288,4 @@ static const struct rtc_driver_api _pcf8563_api = {
 };
 
 DRVFX_DEVICE_DEFINE_WITH_DEPS("rtc_dev", pcf8563_init, &_pcf8563_data, &_pcf8563_config,
-                              DRVFX_INIT_POST_KERNEL_DEFAULT_PRIORITY, &_pcf8563_api, _pcf8563_required_devices, 1);
+                              DRVFX_INIT_POST_KERNEL_DEVICE_PRIORITY, &_pcf8563_api, _pcf8563_required_devices, 1);

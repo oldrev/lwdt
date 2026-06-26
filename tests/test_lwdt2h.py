@@ -184,6 +184,68 @@ def test_import_stays_relative_to_including_file(tmp_path: Path) -> None:
     assert "#define LWDT_NS_common_P_from_base 1" in header
 
 
+def test_overlay_applies_after_base(tmp_path: Path) -> None:
+    base = tmp_path / "board.lwdt"
+    overlay = tmp_path / ".lwdt.overlay"
+    output = tmp_path / "generated.h"
+    base.write_text(
+        """
+{
+  board: {
+    label: "board",
+    led_gpio: 8,
+    led_name: "base",
+  },
+}
+""".strip(),
+        encoding="utf-8",
+    )
+    overlay.write_text(
+        """
+{
+  board+: {
+    led_gpio: 10,
+    led_name: "overlay",
+  },
+}
+""".strip(),
+        encoding="utf-8",
+    )
+
+    result = run_lwdt("--overlay", str(overlay), "-o", str(output), str(base), cwd=tmp_path)
+
+    assert result.returncode == 0, result.stderr or result.stdout
+    header = output.read_text(encoding="utf-8")
+    assert "#define LWDT_NS_board_P_led_gpio 10" in header
+    assert "#define LWDT_NS_board_P_led_name \"overlay\"" in header
+
+
+def test_multiple_overlays_apply_in_order(tmp_path: Path) -> None:
+    base = tmp_path / "board.lwdt"
+    first = tmp_path / "first.lwdt.overlay"
+    second = tmp_path / "second.lwdt.overlay"
+    output = tmp_path / "generated.h"
+    base.write_text("{ board: { led_gpio: 1, led_name: \"base\" } }", encoding="utf-8")
+    first.write_text("{ board+: { led_gpio: 2, led_name: \"first\" } }", encoding="utf-8")
+    second.write_text("{ board+: { led_name: \"second\" } }", encoding="utf-8")
+
+    result = run_lwdt(
+        "--overlay",
+        str(first),
+        "--overlay",
+        str(second),
+        "-o",
+        str(output),
+        str(base),
+        cwd=tmp_path,
+    )
+
+    assert result.returncode == 0, result.stderr or result.stdout
+    header = output.read_text(encoding="utf-8")
+    assert "#define LWDT_NS_board_P_led_gpio 2" in header
+    assert "#define LWDT_NS_board_P_led_name \"second\"" in header
+
+
 def test_missing_import_reports_search_paths(tmp_path: Path) -> None:
     source = tmp_path / "board.lwdt"
     source.write_text(
