@@ -21,3 +21,7 @@ __pycache__/
 
 # Local publishing drafts
 .posts/
+
+# Website dependencies and build output
+website/node_modules/
+website/dist/
