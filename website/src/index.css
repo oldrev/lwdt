@@ -1,0 +1,332 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --color-paper: var(--p-paper);
+  --color-paper-2: var(--p-paper-2);
+  --color-paper-3: var(--p-paper-3);
+  --color-ink: var(--p-ink);
+  --color-ink-2: var(--p-ink-2);
+  --color-warm: var(--p-warm);
+  --color-warm-2: var(--p-warm-2);
+  --color-line: var(--p-line);
+  --color-line-soft: var(--p-line-soft);
+  --color-orange: var(--p-orange);
+  --color-orange-ink: var(--p-orange-ink);
+  --color-hazard: var(--p-hazard);
+  --color-hazard-fg: var(--p-hazard-fg);
+  --color-signal: var(--p-signal);
+  --color-panel: var(--p-panel);
+  --color-panel-fg: var(--p-panel-fg);
+  --color-panel-2: var(--p-panel-2);
+  --color-code-bg: var(--p-code-bg);
+  --color-code-tab: var(--p-code-tab);
+  --color-code-fg: var(--p-code-fg);
+  --color-on-orange: var(--p-on-orange);
+
+  --font-display: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-sans: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+
+:root {
+  color-scheme: light;
+  --p-paper: #f2ece1;
+  --p-paper-2: #e9e2d5;
+  --p-paper-3: #ddd4c4;
+  --p-ink: #16130f;
+  --p-ink-2: #3a342c;
+  --p-warm: #6b6258;
+  --p-warm-2: #9c9287;
+  --p-line: #16130f;
+  --p-line-soft: #c7bdac;
+  --p-orange: #e8481f;
+  --p-orange-ink: #ad380f;
+  --p-hazard: #f2c230;
+  --p-hazard-fg: #16130f;
+  --p-signal: #1b6646;
+  --p-panel: #16130f;
+  --p-panel-fg: #f2ece1;
+  --p-panel-2: #272119;
+  --p-code-bg: #16130f;
+  --p-code-tab: #241f18;
+  --p-code-fg: #e9e2d5;
+  --p-on-orange: #16130f;
+  --grid-line: rgba(22, 19, 15, 0.055);
+  --grain-op: 0.14;
+}
+
+.dark {
+  color-scheme: dark;
+  --p-paper: #100f0e;
+  --p-paper-2: #1a1816;
+  --p-paper-3: #262220;
+  --p-ink: #f0ebe3;
+  --p-ink-2: #cfc7bb;
+  --p-warm: #a1978b;
+  --p-warm-2: #786f65;
+  --p-line: #4a443c;
+  --p-line-soft: #332e29;
+  --p-orange: #ff6a3d;
+  --p-orange-ink: #ff8a5c;
+  --p-hazard: #f2c230;
+  --p-hazard-fg: #16130f;
+  --p-signal: #4fbe8b;
+  --p-panel: #1a1816;
+  --p-panel-fg: #f0ebe3;
+  --p-panel-2: #262220;
+  --p-code-bg: #080807;
+  --p-code-tab: #141211;
+  --p-code-fg: #e4ddd2;
+  --p-on-orange: #180d08;
+  --grid-line: rgba(240, 235, 227, 0.05);
+  --grain-op: 0.2;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    scroll-padding-top: 5.5rem;
+  }
+  body {
+    background-color: var(--p-paper);
+    color: var(--p-ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+  ::selection {
+    background: var(--p-hazard);
+    color: var(--p-hazard-fg);
+  }
+  :focus-visible {
+    outline: 2px solid var(--p-orange);
+    outline-offset: 2px;
+  }
+}
+
+.tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+.micro {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  line-height: 1;
+  letter-spacing: 0.17em;
+  text-transform: uppercase;
+}
+
+.grain::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)' opacity='0.55'/%3E%3C/svg%3E");
+  opacity: var(--grain-op);
+  mix-blend-mode: overlay;
+}
+
+.hatch {
+  background-image: repeating-linear-gradient(
+    45deg,
+    var(--p-orange) 0 5px,
+    transparent 5px 11px
+  );
+}
+
+.photo {
+  filter: saturate(0.92) contrast(1.02);
+}
+.dark .photo {
+  filter: saturate(0.55) contrast(0.95) brightness(0.72);
+}
+
+.reveal {
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.6s ease, transform 0.6s cubic-bezier(0.2, 0.7, 0.3, 1);
+}
+.reveal.is-in {
+  opacity: 1;
+  transform: none;
+}
+
+@keyframes blink {
+  0%,
+  45% {
+    opacity: 1;
+  }
+  55%,
+  100% {
+    opacity: 0.25;
+  }
+}
+.led {
+  animation: blink 1.4s steps(1, end) infinite;
+}
+
+/* Markdown documentation typography. Content itself lives in src/content/<lang>/*.md. */
+.markdown {
+  color: var(--p-ink-2);
+  font-size: 0.96rem;
+  line-height: 1.85;
+}
+.markdown > * + * {
+  margin-top: 1.35rem;
+}
+.markdown h1,
+.markdown h2,
+.markdown h3 {
+  color: var(--p-ink);
+  font-family: var(--font-display);
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  line-height: 1.15;
+}
+.markdown h1 {
+  margin-top: 0;
+  padding-bottom: 1.1rem;
+  border-bottom: 2px solid var(--p-line);
+  font-size: clamp(2rem, 4vw, 2.8rem);
+}
+.markdown h2 {
+  margin-top: 3.1rem;
+  padding-bottom: 0.55rem;
+  border-bottom: 1px solid var(--p-line-soft);
+  font-size: clamp(1.35rem, 2.8vw, 1.75rem);
+}
+.markdown h3 {
+  margin-top: 2rem;
+  font-size: 1.13rem;
+}
+.markdown p {
+  max-width: 76ch;
+}
+.markdown strong {
+  color: var(--p-ink);
+  font-weight: 700;
+}
+.markdown a {
+  color: var(--p-orange-ink);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.markdown ul,
+.markdown ol {
+  display: flex;
+  max-width: 74ch;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding-left: 1.35rem;
+}
+.markdown ul {
+  list-style-type: square;
+}
+.markdown ol {
+  list-style-type: decimal;
+}
+.markdown li::marker {
+  color: var(--p-orange);
+}
+.markdown :not(pre) > code {
+  border: 1px solid var(--p-line-soft);
+  background: var(--p-paper-2);
+  padding: 0.08rem 0.3rem;
+  color: var(--p-orange-ink);
+  font-family: var(--font-mono);
+  font-size: 0.83em;
+}
+.markdown pre {
+  max-width: 100%;
+  overflow-x: auto;
+  border: 2px solid var(--p-line);
+  background: var(--p-code-bg);
+  padding: 1.15rem 1.2rem;
+  color: var(--p-code-fg);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  line-height: 1.75;
+}
+.markdown pre code {
+  font-family: inherit;
+}
+.markdown blockquote {
+  max-width: 76ch;
+  border-left: 4px solid var(--p-hazard);
+  background: var(--p-paper-2);
+  padding: 0.8rem 1rem;
+  color: var(--p-ink);
+}
+/* Code frames carry their own language label, matching Docusaurus code blocks. */
+.markdown .md-code {
+  max-width: 100%;
+  overflow: hidden;
+  border: 2px solid var(--p-line);
+  background: var(--p-code-bg);
+}
+.markdown .md-code__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--p-line-soft);
+  background: var(--p-code-tab);
+  padding: 0.35rem 0.85rem;
+  color: var(--p-warm);
+}
+.markdown .md-code pre {
+  margin: 0;
+  border: 0;
+  background: transparent;
+}
+.markdown table {
+  display: table;
+  width: 100%;
+  overflow: hidden;
+  border: 2px solid var(--p-line);
+  border-collapse: collapse;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  line-height: 1.55;
+}
+.markdown thead {
+  background: var(--p-panel);
+  color: var(--p-panel-fg);
+}
+.markdown th,
+.markdown td {
+  border: 1px solid var(--p-line-soft);
+  padding: 0.65rem 0.8rem;
+  text-align: left;
+  vertical-align: top;
+}
+.markdown tbody tr:nth-child(even) {
+  background: var(--p-paper-2);
+}
+.markdown hr {
+  border: 0;
+  border-top: 2px solid var(--p-line);
+}
+@media (max-width: 640px) {
+  .markdown table {
+    display: block;
+    overflow-x: auto;
+    white-space: normal;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+  .led {
+    animation: none;
+  }
+}
