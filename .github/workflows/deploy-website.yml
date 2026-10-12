@@ -40,6 +40,8 @@ jobs:
 
       - name: Build website
         working-directory: website
+        env:
+          VITE_GOOGLE_ANALYTICS_ID: ${{ secrets.GOOGLE_ANALYTICS_ID }}
         run: npm run build
 
       - name: Upload Pages artifact

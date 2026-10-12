@@ -22,6 +22,26 @@ export default function App() {
         : t.title;
   }, [t, route.view]);
 
+  useEffect(() => {
+    const measurementId = import.meta.env.VITE_GOOGLE_ANALYTICS_ID;
+    if (!measurementId || document.querySelector("script[data-google-analytics]")) {
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.async = true;
+    script.src = `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(measurementId)}`;
+    script.dataset.googleAnalytics = "true";
+    document.head.appendChild(script);
+
+    window.dataLayer = window.dataLayer || [];
+    window.gtag = function (...args: unknown[]) {
+      window.dataLayer!.push(args);
+    };
+    window.gtag("js", new Date());
+    window.gtag("config", measurementId);
+  }, []);
+
   return (
     <div className="flex min-h-screen flex-col bg-paper" id="top">
       {/* Top Navbar */}
